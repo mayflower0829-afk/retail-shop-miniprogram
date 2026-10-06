@@ -1,6 +1,6 @@
 {
   "appid": "touristappid",
-  "projectname": "guzi-shop-demo",
+  "projectname": "retail-shop-demo",
   "compileType": "miniprogram",
   "miniprogramRoot": "miniprogram/",
   "cloudfunctionRoot": "cloudfunctions/",

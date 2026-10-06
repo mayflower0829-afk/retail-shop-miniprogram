@@ -14,7 +14,7 @@
     "pages/admin-products/index"
   ],
   "window": {
-    "navigationBarTitleText": "示例谷子店",
+    "navigationBarTitleText": "示例零售店",
     "navigationBarBackgroundColor": "#fff9f0",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#fff9f0"
