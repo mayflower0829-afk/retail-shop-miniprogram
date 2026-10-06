@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="title">店铺管理</view>
+  <view class="card row space-top" bindtap="products"><view><view class="section">商品与库存</view><view class="muted">修改单价、补货、上下架</view></view><text class="link">管理 ›</text></view>
+  <view class="section">订单 · 最近100笔</view><view wx:if="{{demo}}" class="demo">此设备的演示订单</view><view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{hasDeliveryToShip}}" class="card"><view class="section">快递发货信息</view><input class="field" placeholder="快递公司" value="{{carrier}}" data-field="carrier" bindinput="field"/><input class="field" placeholder="快递单号" value="{{tracking}}" data-field="tracking" bindinput="field"/></view>
+  <view wx:if="{{hasPickupToRedeem}}" class="card"><view class="section">自取核销</view><input class="field" value="{{pickupCode}}" placeholder="顾客出示的6位自取码" maxlength="6" type="number" data-field="pickupCode" bindinput="field"/><view class="note">交付商品时核对自取码，再确认核销。</view></view>
+  <view wx:if="{{!orders.length && !error}}" class="empty">还没有订单</view>
+  <view wx:for="{{orders}}" wx:key="id" class="card admin-order">
+    <view class="row"><text class="tag">{{item.deliveryMode==='pickup'?'到店自取':'快递配送'}}</text><text class="order-status">{{item.statusName}}</text></view>
+    <view class="admin-order-item row" wx:for="{{item.preview}}" wx:for-item="line" wx:key="skuId"><image class="thumb" src="{{line.image || '/assets/placeholder.jpg'}}" mode="aspectFit"/><view class="grow two-lines">{{line.displayName}}</view><text class="muted">×{{line.qty}}</text></view>
+    <view wx:if="{{item.extraCount}}" class="note">另有{{item.extraCount}}款商品，点订单详情查看</view>
+    <view class="row line"><text class="muted">共{{item.quantity}}件</text><text class="price">¥{{item.totalText}}</text></view>
+    <view wx:if="{{item.contactName}}" class="note">{{item.deliveryMode==='pickup'?'取货人':'收货人'}}：{{item.contactName}}　{{item.contactPhone}}</view>
+    <view class="order-id muted space-top" selectable="true">{{item.id}}</view><view class="order-time">{{item.dateText}}</view>
+    <view class="note" wx:if="{{item.refundReason}}">此前售后记录：{{item.refundReason}}</view>
+    <view class="row space-top"><button class="secondary" data-id="{{item.id}}" bindtap="open">订单详情</button><button wx:if="{{item.status==='paid' && item.deliveryMode!=='pickup'}}" class="primary" data-id="{{item.id}}" bindtap="ship" disabled="{{busy}}">{{demo?'模拟发货':'确认发货'}}</button><button wx:if="{{item.status==='paid' && item.deliveryMode==='pickup'}}" class="primary" data-id="{{item.id}}" data-action="preparePickup" bindtap="pickup" disabled="{{busy}}">备货完成</button><button wx:if="{{item.status==='ready_pickup'}}" class="primary" data-id="{{item.id}}" data-action="completePickup" bindtap="pickup" disabled="{{busy}}">确认核销</button></view>
+  </view>
+</view>

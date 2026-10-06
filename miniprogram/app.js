@@ -1,0 +1,1 @@
+const config = require('./config'); App({ onLaunch() { if (config.mode === 'cloud') { if (!config.cloudEnv) throw new Error('请配置云开发环境'); wx.cloud.init({env:config.cloudEnv,traceUser:false}); } }, globalData:{config} });

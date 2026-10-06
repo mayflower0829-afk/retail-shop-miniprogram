@@ -1,0 +1,23 @@
+<view class="page">
+  <view wx:if="{{error}}" class="empty">{{error}}</view>
+  <block wx:if="{{p}}">
+    <swiper class="detail-gallery" indicator-dots="{{gallery.length>1}}" indicator-active-color="#c65370">
+      <swiper-item wx:for="{{gallery}}" wx:key="*this"><image class="detail-image" src="{{item}}" mode="aspectFit" data-index="{{index}}" bindtap="preview" aria-role="button" aria-label="查看商品大图" binderror="imageFailed"/></swiper-item>
+    </swiper>
+    <view class="gallery-hint">{{hasImage?'点击图片放大':'商品图片待补充'}}</view>
+    <view wx:if="{{imageError}}" class="note image-retry" bindtap="retryImage">{{imageError}}</view>
+    <view class="card detail-summary">
+      <view class="section">{{p.displayName}}</view>
+      <view class="row"><view><text class="price detail-price">¥{{price}}</text><text class="original-price">¥{{originalPrice}}</text></view><text class="link" bindtap="favorite">{{favorite?'♥ 已收藏':'♡ 收藏'}}</text></view>
+      <text class="promotion-tag">全场五折</text><text class="tag">{{p.group}}</text>
+      <view wx:if="{{description}}" class="note space-top">{{description}}</view>
+    </view>
+    <view class="card">
+      <view class="section">{{p.skus.length>1?'选择款式':'购买数量'}}</view>
+      <view wx:if="{{p.skus.length>1}}" class="chips"><view wx:for="{{p.skus}}" wx:key="id" data-id="{{item.id}}" class="chip {{sku.id===item.id?'active':''}}" bindtap="select">{{item.name}}{{item.stock===0?' · 售罄':''}}</view></view>
+      <view class="row"><text class="muted">库存 {{sku.stock}}</text><view class="qty"><button data-delta="-1" bindtap="qty">−</button><text>{{qty}}</text><button data-delta="1" bindtap="qty">＋</button></view></view>
+      <view class="note space-top">折后满69元包邮 · 支持自取</view>
+    </view>
+    <view class="bottom row detail-toolbar"><text class="link" bindtap="help">客服</text><button class="secondary" bindtap="add" disabled="{{!sku.stock}}">加入购物车</button><button class="primary" bindtap="buy" disabled="{{!sku.stock}}">立即购买</button></view>
+  </block>
+</view>

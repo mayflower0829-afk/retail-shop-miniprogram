@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="title">联系店主</view><view class="subtitle">{{shopName}}</view>
+  <view class="card">
+    <view class="section">有问题，直接找我</view>
+    <view class="note">商品咨询、订单问题或退换货，都可以通过微信联系店主。</view>
+    <view wx:if="{{supportWeChat}}" class="row space-top"><text>客服微信</text><text selectable="true" class="link">{{supportWeChat}}</text></view>
+    <button wx:if="{{supportWeChat}}" class="primary space-top" bindtap="copySupport">复制客服微信</button>
+    <view wx:if="{{supportWeChat}}" class="note space-top">复制后打开微信添加店主。</view><view wx:else class="note space-top">演示项目未配置客服。部署自己的店铺时再填写联系方式。</view>
+    <view wx:if="{{orderId}}" class="space-top"><view class="note" selectable="true">订单号：{{orderId}}</view><button class="secondary space-top" bindtap="copyOrder">复制订单号</button></view>
+  </view>
+  <view class="card"><view class="section">购物说明</view><view class="note">全场五折，折后商品合计满69元包邮，也可以到店自取。运费与自取信息请查看结算页。</view><view class="note space-top">购买盲盒前，可联系店主确认售卖单位和款式。填写的收货信息用于配送及订单联系。</view></view>
+  <view wx:if="{{demo}}" class="demo">试用版 · 演示付款不扣款</view>
+</view>

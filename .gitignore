@@ -1,0 +1,22 @@
+# Credentials and local machine settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+project.private.config.json
+node_modules/
+.DS_Store
+__pycache__/
+# Real operational data must stay outside this template
+private-data/
+product-images/
+*.xlsx
+*.xls
+*.csv
+*.zip
+*.log
+coverage/

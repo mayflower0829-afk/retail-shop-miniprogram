@@ -1,0 +1,71 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/category/index",
+    "pages/cart/index",
+    "pages/orders/index",
+    "pages/profile/index",
+    "pages/detail/index",
+    "pages/checkout/index",
+    "pages/order/index",
+    "pages/address/index",
+    "pages/admin/index",
+    "pages/help/index",
+    "pages/admin-products/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "示例谷子店",
+    "navigationBarBackgroundColor": "#fff9f0",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff9f0"
+  },
+  "tabBar": {
+    "color": "#8a8993",
+    "selectedColor": "#c65370",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "选款",
+        "iconPath": "assets/home.png",
+        "selectedIconPath": "assets/home-active.png"
+      },
+      {
+        "pagePath": "pages/category/index",
+        "text": "分类",
+        "iconPath": "assets/category.png",
+        "selectedIconPath": "assets/category-active.png"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车",
+        "iconPath": "assets/cart.png",
+        "selectedIconPath": "assets/cart-active.png"
+      },
+      {
+        "pagePath": "pages/orders/index",
+        "text": "订单",
+        "iconPath": "assets/orders.png",
+        "selectedIconPath": "assets/orders-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "assets/profile.png",
+        "selectedIconPath": "assets/profile-active.png"
+      }
+    ],
+    "borderStyle": "white"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "subPackages": [
+    {
+      "root": "gallery-demo",
+      "name": "gallery-demo",
+      "pages": [
+        "detail/index"
+      ]
+    }
+  ]
+}
