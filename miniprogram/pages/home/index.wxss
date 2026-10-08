@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.campaign-strip{align-items:flex-start}.campaign-strip>text:last-child{flex:1;min-width:0;text-align:right;line-height:1.65}

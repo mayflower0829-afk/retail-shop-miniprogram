@@ -16,6 +16,14 @@ function sortProducts(products, sort = 'default') {
     return a.index - b.index;
   }).map(item => item.p);
 }
+function shippingDescription(policy) {
+  const yuan = cents => (cents / 100).toFixed(2).replace(/\.?0+$/, '');
+  const pickup = policy.pickupEnabled ? ' · 自取免邮' : '';
+  if (!Number.isSafeInteger(policy.freeShipping) || !Number.isSafeInteger(policy.shippingFee) || policy.freeShipping < 0 || policy.shippingFee < 0) return '运费以结算页为准' + pickup;
+  if (policy.shippingFee === 0 || policy.freeShipping === 0) return '快递免邮' + pickup;
+  const basis = policy.freeShippingBasis === 'original' ? '原价' : '折后';
+  return basis + '满' + yuan(policy.freeShipping) + '元包邮 · 不满邮费' + yuan(policy.shippingFee) + '元' + pickup;
+}
 function shippingProgress(subtotal, count, policy) {
   const threshold = policy.freeShipping;
   if (!count) return { shippingHint: '勾选商品，查看包邮进度', shippingProgress: 0 };
@@ -32,4 +40,4 @@ function orderSummary(o, statusName) {
     totalText: (o.total / 100).toFixed(2), contactName: contact.name || '', contactPhone: contact.phone || '',
     dateText: o.createdAt ? new Date(o.createdAt).toLocaleString() : '' };
 }
-module.exports = { productTitle, lineTitle, sortProducts, shippingProgress, orderSummary };
+module.exports = { productTitle, lineTitle, sortProducts, shippingDescription, shippingProgress, orderSummary };

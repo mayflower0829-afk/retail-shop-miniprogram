@@ -11,7 +11,9 @@
     "pages/address/index",
     "pages/admin/index",
     "pages/help/index",
-    "pages/admin-products/index"
+    "pages/admin-products/index",
+    "pages/terms/index",
+    "pages/privacy/index"
   ],
   "window": {
     "navigationBarTitleText": "示例零售店",

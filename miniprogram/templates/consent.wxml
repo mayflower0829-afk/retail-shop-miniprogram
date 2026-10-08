@@ -1,0 +1,12 @@
+<template name="fulfillmentConsent">
+  <view class="card consent-card">
+    <view class="section">填写信息前，请先确认</view>
+    <view class="note">快递收货需要姓名、手机号和地址，自取只需要姓名和手机号，用于配送、取货及订单联系。</view>
+    <view wx:if="{{demo}}" class="note space-top">信息由你手动填写，本试用版仅保存在当前设备，不会产生真实付款或配送。</view><view wx:else class="note space-top">信息由你手动填写，仅用于订单履约和联系；详细处理规则请阅读隐私政策。</view>
+    <view class="consent-docs"><text class="link" data-page="terms" bindtap="consentDoc">《用户服务协议》</text><text class="link" data-page="privacy" bindtap="consentDoc">《隐私政策》</text></view>
+    <checkbox-group bindchange="consentChecked"><label class="consent-choice"><checkbox value="agree" checked="{{consentChecked}}" color="#c65370"/><text>我已阅读并同意上述协议和政策；未满14周岁已取得监护人同意</text></label></checkbox-group>
+    <view wx:if="{{consentError}}" class="error">{{consentError}}</view>
+    <button class="primary space-top" bindtap="agreeToTerms" disabled="{{!consentChecked || consentBusy}}" loading="{{consentBusy}}">同意并继续填写</button>
+    <button class="secondary space-top" bindtap="declineConsent">暂不同意，继续浏览</button>
+  </view>
+</template>

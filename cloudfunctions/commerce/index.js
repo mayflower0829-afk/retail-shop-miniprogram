@@ -1,7 +1,7 @@
-const cloud=require('wx-server-sdk'),crypto=require('crypto'),domain=require('./domain'),pay=require('./pay'),inventory=require('./inventory'),business=require('./business');
+const cloud=require('wx-server-sdk'),crypto=require('crypto'),domain=require('./domain'),pay=require('./pay'),inventory=require('./inventory'),business=require('./business'),consent=require('./consent-version');
 cloud.init({env:cloud.DYNAMIC_CURRENT_ENV});const db=cloud.database();
 function shippingPolicy(){
- const raw=process.env.SHIPPING_FEE_CENTS,fee=raw===undefined||raw===''?null:Number(raw);
+ const raw=process.env.SHIPPING_FEE_CENTS,fee=raw===undefined||raw===''?business.shippingFee:Number(raw);
  if(fee!==null&&(!Number.isSafeInteger(fee)||fee<0))throw new Error('正式运费配置无效');
  return {...business,shippingFee:fee,pickupLocation:(process.env.PICKUP_LOCATION||'').trim(),pickupHours:(process.env.PICKUP_HOURS||'').trim()};
 }
@@ -44,9 +44,10 @@ exports.main=async(event)=>{
   }
   if(a==='whoami')return {ok:true,data:{openid,isAdmin:isAdmin(openid)}};
   if(a==='createOrder'){
+   const privacyConsent=consent.validateConsent(event.privacyConsent);
    if(process.env.ENABLE_CHECKOUT!=='true')fail('商城尚未开放正式交易');pay.config();const policy=shippingPolicy(),fulfillment=domain.validateFulfillment(event,event.address,policy,true);if(typeof event.token!=='string'||!/^[a-zA-Z0-9_-]{8,80}$/.test(event.token))fail('下单标识无效');
    const id='G'+crypto.createHash('sha256').update(openid+':'+event.token).digest('hex').slice(0,28);
-   const data=await db.runTransaction(async tx=>{const ref=tx.collection('orders').doc(id);let existing;try{existing=(await ref.get()).data}catch(e){if(!/not exist|not found|不存在/i.test(e.message||''))throw e}if(existing)return existing;const all=await catalog();const ids=[...new Set((event.items||[]).map(i=>{const p=all.find(p=>p.skus.some(s=>s.id===i.skuId));if(!p)fail('商品不存在');return p.id}))];const products=[];for(const pid of ids){const p=(await tx.collection('products').doc(pid).get()).data;if(p.needsReview)fail(p.name+'尚未核对售卖资料');products.push({...p,id:pid})}const q=domain.quote(products,event.items,policy,fulfillment);if(q.shippingError)fail(q.shippingError);for(const p of products){q.lines.filter(l=>l.productId===p.id).forEach(l=>p.skus.find(s=>s.id===l.skuId).stock-=l.qty);await tx.collection('products').doc(p.id).update({data:{skus:p.skus}})}const order={id,_openid:openid,token:event.token,...q,...fulfillment,status:'pending',lock:'',demo:false,createdAt:Date.now(),expiresAt:Date.now()+15*60*1000};await ref.set({data:order});return order});return {ok:true,data};
+   const data=await db.runTransaction(async tx=>{const ref=tx.collection('orders').doc(id);let existing;try{existing=(await ref.get()).data}catch(e){if(!/not exist|not found|不存在/i.test(e.message||''))throw e}if(existing)return existing;const all=await catalog();const ids=[...new Set((event.items||[]).map(i=>{const p=all.find(p=>p.skus.some(s=>s.id===i.skuId));if(!p)fail('商品不存在');return p.id}))];const products=[];for(const pid of ids){const p=(await tx.collection('products').doc(pid).get()).data;if(p.needsReview)fail(p.name+'尚未核对售卖资料');products.push({...p,id:pid})}const q=domain.quote(products,event.items,policy,fulfillment);if(q.shippingError)fail(q.shippingError);for(const p of products){q.lines.filter(l=>l.productId===p.id).forEach(l=>p.skus.find(s=>s.id===l.skuId).stock-=l.qty);await tx.collection('products').doc(p.id).update({data:{skus:p.skus}})}const order={id,_openid:openid,token:event.token,...q,...fulfillment,privacyConsent,status:'pending',lock:'',demo:false,createdAt:Date.now(),expiresAt:Date.now()+15*60*1000};await ref.set({data:order});return order});return {ok:true,data};
   }
   if(a==='orders')return {ok:true,data:(await db.collection('orders').where({_openid:openid}).orderBy('createdAt','desc').limit(100).get()).data};
   if(a==='adminOrders'){if(!isAdmin(openid))fail('仅商家管理员可访问');return {ok:true,data:(await db.collection('orders').orderBy('createdAt','desc').limit(100).get()).data}}

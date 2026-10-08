@@ -1,6 +1,6 @@
 {
   "name": "retail-shop-miniprogram",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Native WeChat retail mini program with synthetic demo data",
   "scripts": {
