@@ -1,10 +1,11 @@
 const privacy=require('../miniprogram/utils/privacy');
 const test=require('node:test'),assert=require('node:assert/strict');
 const storage=new Map(),copy=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));let navigation='';
-global.wx={getStorageSync:k=>copy(storage.get(k)),setStorageSync:(k,v)=>storage.set(k,copy(v)),showToast(){},navigateTo:o=>{navigation=o.url}};
+global.wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),getStorageSync:k=>copy(storage.get(k)),setStorageSync:(k,v)=>storage.set(k,copy(v)),showToast(){},navigateTo:o=>{navigation=o.url}};
 const s=require('../miniprogram/utils/store'),seed=require('../miniprogram/data/products');
 s.config.demoAdminEnabled=true; // Test-only shop-manager view.
 function page(name){let p;global.Page=x=>p=x;const file=require.resolve('../miniprogram/pages/'+name+'/index');delete require.cache[file];require(file);p.data=copy(p.data);p.setData=function(v){Object.assign(this.data,copy(v))};return p}
+require('../miniprogram/utils/runtime').initialize(require('../miniprogram/config'),wx);
 test('quick add reselects an existing cart item, respects stock and never reserves goods',async()=>{
   storage.clear();privacy.acceptConsent(true);const p=(await s.catalog()).find(p=>p.id==='demo-001');p.skus[0].stock=2;
   s.saveCart([{skuId:p.skus[0].id,qty:1,selected:false}]);assert.equal(s.quickAdd(p),true);assert.deepEqual(s.cart(),[{skuId:p.skus[0].id,qty:2,selected:true}]);

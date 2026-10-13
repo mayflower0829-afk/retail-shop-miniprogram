@@ -1,15 +1,16 @@
-const config=require('../config'),seed=require('../data/products'),domain=require('./domain'),inventory=require('./inventory'),presentation=require('./presentation'),privacy=require('./privacy');
+const config=require('../config'),seed=require('../data/products'),domain=require('./domain'),inventory=require('./inventory'),presentation=require('./presentation'),privacy=require('./privacy'),runtime=require('./runtime');
 const KEY='guzi.template.demo.v1';
 const clone=x=>JSON.parse(JSON.stringify(x));
-function read(){return wx.getStorageSync(KEY)||{products:clone(seed),orders:[]}}
-function write(s){wx.setStorageSync(KEY,s)}
+function read(){runtime.assertReady(config);return wx.getStorageSync(KEY)||{products:clone(seed),orders:[]}}
+function write(s){runtime.assertReady(config);wx.setStorageSync(KEY,s)}
 const statusNames={pending:'待付款',paid:'待发货',shipped:'待收货',ready_pickup:'待自取',completed:'已完成',cancelled:'已取消',refund_requested:'售后处理中',refunded:'已退款'};
-function orderStatusName(o){return o.deliveryMode==='pickup'&&o.status==='paid'?'待备货':statusNames[o.status]}
+function orderStatusName(o){if(o.kind==='payment_test')return ({pending:'待测试付款',paid:'测试已付款',cancelled:'测试已取消'})[o.status]||statusNames[o.status];return o.deliveryMode==='pickup'&&o.status==='paid'?'待备货':statusNames[o.status]}
 function money(n){return (n/100).toFixed(2)}
 function decorate(p){const skus=p.skus.map(k=>({...k,salePrice:domain.salePrice(k.price,config.promotion)}));return {...p,displayName:presentation.productTitle(p),skus,priceText:money(Math.min(...skus.map(k=>k.salePrice))),originalPriceText:money(Math.min(...skus.map(k=>k.price))),hasDiscount:!!config.promotion.enabled,stock:skus.reduce((n,s)=>n+s.stock,0)}}
-async function cloud(action,data={}){const {result}=await wx.cloud.callFunction({name:'commerce',data:{action,...data}});if(!result.ok)throw new Error(result.message||'服务暂不可用');return result.data}
-async function catalog(){return (config.mode==='demo'?read().products:await cloud('catalog')).filter(p=>p.active).map(decorate)}
+async function cloud(action,data={}){await runtime.ready(config);if(config.mode!=='cloud')throw new Error('当前开发模式未接入云端店铺');let response;try{response=await wx.cloud.callFunction({name:'commerce',data:{...data,action}})}catch(e){throw new Error('暂时无法连接店铺，请稍后重试')}const result=response&&response.result;if(!result||result.ok!==true)throw new Error(result&&result.message||'店铺服务尚未准备好，请联系店主');return result.data}
+async function catalog(){await runtime.ready(config);return (config.mode==='demo'?read().products:await cloud('catalog')).filter(p=>p.active).map(decorate)}
 async function createOrder(items,address,token,options={}){
+ await runtime.ready(config);
  privacy.assertConsent();
  if(config.mode==='cloud')return cloud('createOrder',{items,address,token,...options,privacyConsent:privacy.snapshot()});
  const state=read(),old=state.orders.find(o=>o.token===token);if(old)return old;
@@ -17,8 +18,8 @@ async function createOrder(items,address,token,options={}){
  q.lines.forEach(l=>{state.products.find(p=>p.id===l.productId).skus.find(s=>s.id===l.skuId).stock-=l.qty});
  const o={expiresAt:Date.now()+15*60*1000,id:'D'+Date.now()+Math.random().toString(36).slice(2,8),token,...q,...fulfillment,privacyConsent:privacy.snapshot(),status:'pending',createdAt:Date.now(),demo:true};state.orders.unshift(o);write(state);return o;
 }
-async function shippingPolicy(){return config.mode==='demo'?{promotion:config.promotion,freeShipping:config.freeShipping,freeShippingBasis:config.freeShippingBasis,shippingFee:config.shippingFee,pickupEnabled:config.pickupEnabled,pickupLocation:config.pickupLocation,pickupHours:config.pickupHours}:cloud('shippingPolicy')}
-async function isAdmin(){return config.mode==='demo'?config.demoAdminEnabled===true:(await cloud('whoami')).isAdmin===true}
+async function shippingPolicy(){await runtime.ready(config);return config.mode==='demo'?{promotion:config.promotion,freeShipping:config.freeShipping,freeShippingBasis:config.freeShippingBasis,shippingFee:config.shippingFee,pickupEnabled:config.pickupEnabled,pickupLocation:config.pickupLocation,pickupHours:config.pickupHours}:cloud('shippingPolicy')}
+async function isAdmin(){await runtime.ready(config);return config.mode==='demo'?config.demoAdminEnabled===true:(await cloud('whoami')).isAdmin===true}
 async function ensureAdmin(){if(!await isAdmin())throw new Error('当前用户没有店铺管理权限')}
 async function adminProducts(){await ensureAdmin();return (config.mode==='demo'?read().products:await cloud('adminProducts')).map(decorate)}
 async function updateProduct(id,patch,token){
@@ -31,14 +32,17 @@ async function updateProduct(id,patch,token){
  state.products[i]=product;state.managementRequests[token]={id,patch:clone(patch),product};write(state);return product;
 }
 async function orderPage({offset=0,status='all',limit=20}={}){
+ await runtime.ready(config);
  if(config.mode==='cloud')return cloud('orderPage',{offset,status,limit});
  let list=read().orders.filter(o=>status==='all'||(status==='refund_requested'?['refund_requested','refunded'].includes(o.status):o.status===status));
  return {orders:list.slice(offset,offset+limit),hasMore:list.length>offset+limit,nextOffset:offset+limit};
 }
-async function orders(){return config.mode==='demo'?read().orders:cloud('orders')}
-async function order(id){return config.mode==='demo'?read().orders.find(o=>o.id===id):cloud('order',{id})}
+async function orders(){await runtime.ready(config);return config.mode==='demo'?read().orders:cloud('orders')}
+async function order(id){await runtime.ready(config);return config.mode==='demo'?read().orders.find(o=>o.id===id):cloud('order',{id})}
 async function action(id,type,data={}){
+ await runtime.ready(config);
  if(config.mode==='cloud')return cloud(type,{id,...data});
+ if(['ship','preparePickup','completePickup'].includes(type))await ensureAdmin();
  const s=read(),o=s.orders.find(o=>o.id===id);if(!o)throw new Error('订单不存在');
  if(type==='demoPay'&&o.status==='pending'){if(o.expiresAt&&o.expiresAt<=Date.now())throw new Error('订单已超过付款时间，请取消后重新下单');o.status='paid';o.paidAt=Date.now()}
  else if(type==='cancel'&&o.status==='pending'){o.status='cancelled';o.cancelledAt=Date.now();o.lines.forEach(l=>s.products.find(p=>p.id===l.productId).skus.find(k=>k.id===l.skuId).stock+=l.qty)}
@@ -81,6 +85,32 @@ function deleteAddress(id){const list=addresses().filter(a=>a.id!==id);if(list.l
 function favorites(){return wx.getStorageSync('favorites.v1')||[]}
 function toggleFavorite(id){const f=favorites(),i=f.indexOf(id);i<0?f.push(id):f.splice(i,1);wx.setStorageSync('favorites.v1',f);return f.includes(id)}
 function err(e){wx.showToast({title:e.message||'操作失败，请重试',icon:'none',duration:3000})}
-async function pay(o){if(config.mode==='demo'){const r=await new Promise(resolve=>wx.showModal({title:'演示支付 · 不扣款',content:'此操作只模拟订单付款，不能购买真实商品。',confirmText:'模拟付款',success:resolve}));if(r.confirm)await action(o.id,'demoPay');return}const p=await cloud('pay',{id:o.id});await new Promise((resolve,reject)=>wx.requestPayment({...p,success:resolve,fail:reject}));await cloud('syncPayment',{id:o.id})}
-function clearPersonalData(){if(config.mode!=='demo')throw new Error('正式订单信息请联系店主申请处理');[KEY,'addresses.v2','address.v1','address.selected.v2','checkout.v1'].forEach(k=>wx.removeStorageSync(k));privacy.revoke()}
-module.exports={...presentation,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};
+async function pay(o){
+ await runtime.ready(config);
+ if(!o||!o.id)throw new Error('订单不存在');
+ if(config.mode==='demo'){
+  const r=await new Promise(resolve=>wx.showModal({title:'演示支付 · 不扣款',content:'此操作只模拟订单付款，不能购买真实商品。',confirmText:'模拟付款',success:resolve}));
+  if(r.confirm)await action(o.id,'demoPay');return;
+ }
+ if(o.demo)throw new Error('这是旧试用订单，请重新下单');
+ const p=await cloud('pay',{id:o.id});let paymentError=null;
+ try{await new Promise((resolve,reject)=>wx.requestPayment({...p,success:resolve,fail:reject}))}catch(e){paymentError=e}
+ let synced;try{synced=await cloud('syncPayment',{id:o.id})}catch(e){
+  if(paymentError&&/cancel/i.test(paymentError.errMsg||paymentError.message||''))throw new Error('已取消付款，订单仍待付款');
+  throw new Error('付款结果暂未核对，请刷新订单状态，避免重复付款');
+ }
+ if(synced&&['paid','shipped','ready_pickup','completed'].includes(synced.status))return synced;
+ if(paymentError)throw new Error(/cancel/i.test(paymentError.errMsg||paymentError.message||'')?'已取消付款，订单仍待付款':'付款未完成，请刷新订单状态');
+ throw new Error('支付结果仍在确认，请刷新订单状态，避免重复付款');
+}
+async function adminOrderPage({offset=0,status='all',limit=20,cursor=null}={}){
+ await ensureAdmin();
+ return config.mode==='demo'?orderPage({offset,status,limit}):cloud('adminOrderPage',{offset,status,limit,cursor});
+}
+async function createPaymentTestOrder(token){
+ await ensureAdmin();if(config.mode!=='cloud')throw new Error('支付测试需要连接真实云端店铺');privacy.assertConsent();
+ return cloud('createPaymentTestOrder',{token,privacyConsent:privacy.snapshot()});
+}
+
+function clearPersonalData(){runtime.assertReady(config);if(config.mode!=='demo')throw new Error('正式订单信息请联系店主申请处理');[KEY,'addresses.v2','address.v1','address.selected.v2','checkout.v1'].forEach(k=>wx.removeStorageSync(k));privacy.revoke()}
+module.exports={...presentation,adminOrderPage,createPaymentTestOrder,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};
