@@ -1,11 +1,13 @@
 {
   "name": "retail-shop-miniprogram",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Native WeChat retail mini program with synthetic demo data",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node tests/check-project.js && node tests/check-public-data.js"
+    "check": "node tests/check-project.js && node tests/check-public-data.js",
+    "setup:cloud": "npm ci --prefix cloudfunctions/commerce --ignore-scripts --no-audit --no-fund",
+    "pretest": "npm run setup:cloud"
   },
   "engines": {
     "node": ">=20"

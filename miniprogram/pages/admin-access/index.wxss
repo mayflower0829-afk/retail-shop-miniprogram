@@ -1,0 +1,1 @@
+.identity-page .title{font-size:36rpx}.identity-consent{display:flex;align-items:flex-start;gap:12rpx;font-size:24rpx;line-height:1.8}.identity-consent checkbox{flex-shrink:0}.identity-value{display:block;background:#fffcfa;border:1rpx solid #eadfe4;border-radius:16rpx;padding:22rpx;margin-top:12rpx;word-break:break-all;font-size:25rpx}

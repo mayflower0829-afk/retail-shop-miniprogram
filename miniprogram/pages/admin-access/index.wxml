@@ -1,0 +1,22 @@
+<view class="page identity-page">
+  <view class="title">店主身份核对</view>
+  <view class="subtitle">店铺管理权限需由店铺后台授权</view>
+  <view class="card space-top">
+    <view class="section">先了解身份核对用途</view>
+    <view class="note">此功能仅供店主核对当前微信在本小程序中的身份标识（OpenID），用于申请店铺管理权限。普通顾客无需使用。</view>
+    <view class="note space-top">只有你主动同意并完成微信隐私授权后，才会向店铺服务查询本人身份。身份标识只在本页显示，不保存到本机地址簿或订单；主动点击复制时写入剪切板。</view>
+    <view class="note space-top">微信公众平台管理员身份不会自动获得本店管理权限；本页不会为任何账号自行授权。</view>
+    <view class="space-top"><text class="link" bindtap="privacy">查看隐私政策</text></view>
+    <checkbox-group bindchange="consentChanged" class="space-top"><label class="identity-consent"><checkbox value="identity" checked="{{checked}}" color="#c65370"/><text>我同意仅为店主身份核对查询并显示本人身份标识</text></label></checkbox-group>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <button class="primary space-top" bindtap="verifyIdentity" loading="{{loading}}" disabled="{{!checked || loading}}">{{verified?'重新核对身份':'同意并核对身份'}}</button>
+  </view>
+  <view wx:if="{{verified}}" class="card">
+    <view class="section">{{isAdmin?'已获店铺管理权限':'尚未获店铺管理权限'}}</view>
+    <view wx:if="{{!isAdmin}}" class="note">请将下面的本人身份标识交给店铺后台负责人核对并授权。授权完成后返回此页重新核对。</view>
+    <view class="label">本人身份标识（OpenID）</view>
+    <text class="identity-value" selectable="true">{{openid}}</text>
+    <button class="secondary space-top" bindtap="copyIdentity" disabled="{{loading}}">复制本人身份标识</button>
+    <button wx:if="{{isAdmin}}" class="primary space-top" bindtap="manage" disabled="{{loading}}">进入店铺管理</button>
+  </view>
+</view>

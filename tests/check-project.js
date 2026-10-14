@@ -2,7 +2,7 @@ const fs=require('fs'),path=require('path'),assert=require('node:assert/strict')
 const root=path.resolve(__dirname,'..'),mp=path.join(root,'miniprogram');
 const app=JSON.parse(fs.readFileSync(path.join(mp,'app.json'))),packages=app.subPackages||[];
 function size(dir){return fs.readdirSync(dir,{withFileTypes:true}).reduce((n,e)=>n+(e.isDirectory()?size(path.join(dir,e.name)):fs.statSync(path.join(dir,e.name)).size),0)}
-function checkFiles(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())checkFiles(p);else{if(p.endsWith('.json'))JSON.parse(fs.readFileSync(p));if(p.endsWith('.js')){if(p.startsWith(mp))assert.ok(!/require\([^)]*\.json['"]/.test(fs.readFileSync(p,'utf8')),'原生小程序不能require JSON');cp.execFileSync(process.execPath,['--check',p])}}}}
+function checkFiles(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory()){if(e.name!=='node_modules')checkFiles(p)}else{if(p.endsWith('.json'))JSON.parse(fs.readFileSync(p));if(p.endsWith('.js')){if(p.startsWith(mp))assert.ok(!/require\([^)]*\.json['"]/.test(fs.readFileSync(p,'utf8')),'原生小程序不能require JSON');cp.execFileSync(process.execPath,['--check',p])}}}}
 checkFiles(mp);checkFiles(path.join(root,'cloudfunctions'));
 const packageSizes=packages.map(p=>({root:p.root,bytes:size(path.join(mp,p.root))}));
 const total=size(mp),main=total-packageSizes.reduce((n,p)=>n+p.bytes,0);

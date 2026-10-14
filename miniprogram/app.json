@@ -13,7 +13,9 @@
     "pages/help/index",
     "pages/admin-products/index",
     "pages/terms/index",
-    "pages/privacy/index"
+    "pages/privacy/index",
+    "pages/admin-access/index",
+    "pages/payment-test/index"
   ],
   "window": {
     "navigationBarTitleText": "示例零售店",
@@ -67,6 +69,15 @@
       "name": "gallery-demo",
       "pages": [
         "detail/index"
+      ]
+    },
+    {
+      "root": "merchant",
+      "name": "merchant",
+      "pages": [
+        "new-product/index",
+        "import/index",
+        "settings/index"
       ]
     }
   ]

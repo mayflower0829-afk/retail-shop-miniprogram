@@ -1,0 +1,5 @@
+<import src="../../templates/consent.wxml"/>
+<view class="page"><view class="title">1分钱支付测试</view><view class="card space-top"><view class="price">¥0.01</view><view class="note">仅供已授权店主检查微信支付。实际扣款1分钱，免运费，不生成商品、不发货、不扣库存，也不参加店铺折扣活动。</view><view class="note space-top">生成订单后，在订单页点击微信支付，由你确认付款。测试款若需退回，请从微信支付商户平台处理。</view></view>
+<view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="reload">重新检查</button></view>
+<template wx:if="{{authorized && !privacyAccepted}}" is="fulfillmentConsent" data="{{consentChecked,consentBusy,consentError,demo,consentTitle,consentPurpose,consentButton}}"/>
+<view wx:if="{{authorized && privacyAccepted}}" class="card"><checkbox-group bindchange="acknowledge"><label class="consent-choice"><checkbox value="test" checked="{{acknowledged}}" color="#c65370"/><text>我知道这是实际扣款¥0.01、不发货的支付测试</text></label></checkbox-group><button class="primary space-top" bindtap="create" loading="{{busy}}" disabled="{{!ready || !acknowledged || busy}}">生成1分钱测试订单</button></view></view>

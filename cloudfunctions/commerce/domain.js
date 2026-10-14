@@ -20,7 +20,7 @@ function quote(products,items,policy,options={}){
  const deliveryMode=options.deliveryMode||'delivery';if(!['delivery','pickup'].includes(deliveryMode))fail('配送方式无效');if(deliveryMode==='pickup'&&!policy.pickupEnabled)fail('店铺暂不支持自取');
  const merged=Object.create(null);items.forEach(i=>{if(!i||typeof i.skuId!=='string'||!Number.isInteger(i.qty)||i.qty<1||i.qty>99)fail('商品数量无效');merged[i.skuId]=(merged[i.skuId]||0)+i.qty;if(merged[i.skuId]>99)fail('单款限购99件')});
  let subtotal=0,originalSubtotal=0;
- const lines=Object.keys(merged).map(skuId=>{const p=products.find(p=>p.skus.some(s=>s.id===skuId));if(!p||!p.active)fail('商品已下架');const s=p.skus.find(s=>s.id===skuId),qty=merged[skuId];if(!Number.isInteger(s.stock)||s.stock<qty)fail(p.name+'库存不足');const price=salePrice(s.price,policy.promotion);subtotal+=price*qty;originalSubtotal+=s.price*qty;return {productId:p.id,skuId,name:p.name,skuName:s.name,image:p.image,originalPrice:s.price,price,qty}});
+ const lines=Object.keys(merged).map(skuId=>{const p=products.find(p=>p.skus.some(s=>s.id===skuId));if(!p||!p.active)fail('商品已下架');const s=p.skus.find(s=>s.id===skuId),qty=merged[skuId];if(!Number.isInteger(s.stock)||s.stock<qty)fail(p.name+'库存不足');const price=salePrice(s.price,policy.promotion);subtotal+=price*qty;originalSubtotal+=s.price*qty;return {productId:p.id,skuId,name:p.name,skuName:s.name,image:p.imageFileID||p.image,originalPrice:s.price,price,qty}});
  if(!Number.isSafeInteger(policy.freeShipping)||policy.freeShipping<0)fail('包邮规则无效');
  const basis=policy.freeShippingBasis||'discounted';if(!['discounted','original'].includes(basis))fail('包邮规则无效');
  const shippingBasisSubtotal=basis==='original'?originalSubtotal:subtotal;

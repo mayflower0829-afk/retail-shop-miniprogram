@@ -1,8 +1,10 @@
 {
-  "name": "retail-commerce",
-  "version": "0.1.4",
+  "name": "guzi-commerce",
+  "version": "0.1.5",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "~3.0.1"
+    "wx-server-sdk": "~3.0.1",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.1"
   }
 }

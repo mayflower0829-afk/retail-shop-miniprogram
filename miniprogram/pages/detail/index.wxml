@@ -8,8 +8,8 @@
     <view wx:if="{{imageError}}" class="note image-retry" bindtap="retryImage">{{imageError}}</view>
     <view class="card detail-summary">
       <view class="section">{{p.displayName}}</view>
-      <view class="row"><view><text class="price detail-price">¥{{price}}</text><text class="original-price">¥{{originalPrice}}</text></view><text class="link" bindtap="favorite">{{favorite?'♥ 已收藏':'♡ 收藏'}}</text></view>
-      <text class="promotion-tag">全场五折</text><text class="tag">{{p.group}}</text>
+      <view class="row"><view><text class="price detail-price">¥{{price}}</text><text wx:if="{{p.hasDiscount}}" class="original-price">¥{{originalPrice}}</text></view><text class="link" bindtap="favorite">{{favorite?'♥ 已收藏':'♡ 收藏'}}</text></view>
+      <text wx:if="{{p.hasDiscount}}" class="promotion-tag">{{p.promotionTitle}}</text><text class="tag">{{p.group}}</text>
       <view wx:if="{{description}}" class="note space-top">{{description}}</view>
     </view>
     <view class="card">

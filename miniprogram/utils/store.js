@@ -1,4 +1,4 @@
-const config=require('../config'),seed=require('../data/products'),domain=require('./domain'),inventory=require('./inventory'),presentation=require('./presentation'),privacy=require('./privacy'),runtime=require('./runtime');
+const config=require('../config'),seed=require('../data/products'),domain=require('./domain'),inventory=require('./inventory'),presentation=require('./presentation'),privacy=require('./privacy'),runtime=require('./runtime'),promotionRules=require('./promotion');
 const KEY='guzi.template.demo.v1';
 const clone=x=>JSON.parse(JSON.stringify(x));
 function read(){runtime.assertReady(config);return wx.getStorageSync(KEY)||{products:clone(seed),orders:[]}}
@@ -6,22 +6,25 @@ function write(s){runtime.assertReady(config);wx.setStorageSync(KEY,s)}
 const statusNames={pending:'待付款',paid:'待发货',shipped:'待收货',ready_pickup:'待自取',completed:'已完成',cancelled:'已取消',refund_requested:'售后处理中',refunded:'已退款'};
 function orderStatusName(o){if(o.kind==='payment_test')return ({pending:'待测试付款',paid:'测试已付款',cancelled:'测试已取消'})[o.status]||statusNames[o.status];return o.deliveryMode==='pickup'&&o.status==='paid'?'待备货':statusNames[o.status]}
 function money(n){return (n/100).toFixed(2)}
-function decorate(p){const skus=p.skus.map(k=>({...k,salePrice:domain.salePrice(k.price,config.promotion)}));return {...p,displayName:presentation.productTitle(p),skus,priceText:money(Math.min(...skus.map(k=>k.salePrice))),originalPriceText:money(Math.min(...skus.map(k=>k.price))),hasDiscount:!!config.promotion.enabled,stock:skus.reduce((n,s)=>n+s.stock,0)}}
+function decorate(p,promotion=config.promotion){const skus=p.skus.map(k=>({...k,salePrice:domain.salePrice(k.price,promotion)}));return {...p,displayName:presentation.productTitle(p),skus,priceText:money(Math.min(...skus.map(k=>k.salePrice))),originalPriceText:money(Math.min(...skus.map(k=>k.price))),hasDiscount:!!promotion.enabled,promotionTitle:promotion.title,stock:skus.reduce((n,s)=>n+s.stock,0)}}
 async function cloud(action,data={}){await runtime.ready(config);if(config.mode!=='cloud')throw new Error('当前开发模式未接入云端店铺');let response;try{response=await wx.cloud.callFunction({name:'commerce',data:{...data,action}})}catch(e){throw new Error('暂时无法连接店铺，请稍后重试')}const result=response&&response.result;if(!result||result.ok!==true)throw new Error(result&&result.message||'店铺服务尚未准备好，请联系店主');return result.data}
-async function catalog(){await runtime.ready(config);return (config.mode==='demo'?read().products:await cloud('catalog')).filter(p=>p.active).map(decorate)}
+async function catalog(policy){await runtime.ready(config);policy=policy||await shippingPolicy();return (config.mode==='demo'?read().products:await cloud('catalog')).filter(p=>p.active).map(p=>decorate(p,policy.promotion))}
 async function createOrder(items,address,token,options={}){
  await runtime.ready(config);
  privacy.assertConsent();
  if(config.mode==='cloud')return cloud('createOrder',{items,address,token,...options,privacyConsent:privacy.snapshot()});
  const state=read(),old=state.orders.find(o=>o.token===token);if(old)return old;
- const fulfillment=domain.validateFulfillment(options,address,config),q=domain.quote(state.products,items,config,fulfillment);if(q.shippingError)throw new Error(q.shippingError);
+ const policy=demoPolicy(state),fulfillment=domain.validateFulfillment(options,address,policy),q=domain.quote(state.products,items,policy,fulfillment);if(q.shippingError)throw new Error(q.shippingError);
  q.lines.forEach(l=>{state.products.find(p=>p.id===l.productId).skus.find(s=>s.id===l.skuId).stock-=l.qty});
  const o={expiresAt:Date.now()+15*60*1000,id:'D'+Date.now()+Math.random().toString(36).slice(2,8),token,...q,...fulfillment,privacyConsent:privacy.snapshot(),status:'pending',createdAt:Date.now(),demo:true};state.orders.unshift(o);write(state);return o;
 }
-async function shippingPolicy(){await runtime.ready(config);return config.mode==='demo'?{promotion:config.promotion,freeShipping:config.freeShipping,freeShippingBasis:config.freeShippingBasis,shippingFee:config.shippingFee,pickupEnabled:config.pickupEnabled,pickupLocation:config.pickupLocation,pickupHours:config.pickupHours}:cloud('shippingPolicy')}
+function demoPolicy(state=read()){return {promotion:state.promotion||config.promotion,freeShipping:config.freeShipping,freeShippingBasis:config.freeShippingBasis,shippingFee:config.shippingFee,pickupEnabled:config.pickupEnabled,pickupLocation:config.pickupLocation,pickupHours:config.pickupHours}}
+async function shippingPolicy(){await runtime.ready(config);return config.mode==='demo'?demoPolicy():cloud('shippingPolicy')}
 async function isAdmin(){await runtime.ready(config);return config.mode==='demo'?config.demoAdminEnabled===true:(await cloud('whoami')).isAdmin===true}
 async function ensureAdmin(){if(!await isAdmin())throw new Error('当前用户没有店铺管理权限')}
-async function adminProducts(){await ensureAdmin();return (config.mode==='demo'?read().products:await cloud('adminProducts')).map(decorate)}
+async function adminProducts(){await ensureAdmin();const policy=await shippingPolicy();return (config.mode==='demo'?read().products:await cloud('adminProducts')).map(p=>decorate(p,policy.promotion))}
+async function adminPromotion(){await ensureAdmin();return config.mode==='demo'?shippingPolicy():cloud('adminPromotion')}
+async function setPromotion(discount){await ensureAdmin();const promotion=promotionRules.parseDiscount(discount);if(config.mode==='cloud')return cloud('setPromotion',{discount});const state=read();state.promotion=promotion;write(state);return {promotion,revision:Date.now()}}
 async function updateProduct(id,patch,token){
  await ensureAdmin();
  if(typeof token!=='string'||!/^[a-zA-Z0-9_-]{8,80}$/.test(token))throw new Error('保存标识无效');
@@ -31,6 +34,25 @@ async function updateProduct(id,patch,token){
  const i=state.products.findIndex(p=>p.id===id);const product=inventory.patchProduct(state.products[i],patch);
  state.products[i]=product;state.managementRequests[token]={id,patch:clone(patch),product};write(state);return product;
 }
+function requestToken(){return 'P'+Date.now()+'_'+Math.random().toString(36).slice(2)}
+async function uploadProductFile(file,purpose,token){
+ await ensureAdmin();if(config.mode!=='cloud')throw new Error('文件上传需连接云端店铺');
+ if(!file||typeof file.path!=='string'||!file.size||file.size>(purpose==='import'?10:8)*1024*1024)throw new Error(purpose==='import'?'Excel文件需小于10MB':'商品图片需小于8MB');
+ let ext=(file.name||file.path).split('.').pop().toLowerCase();if(purpose==='image'&&!['png','jpg','jpeg','gif','webp'].includes(ext))ext='jpg';
+ const {cloudPath}=await cloud('prepareProductFile',{purpose,ext,token});
+ const uploaded=await wx.cloud.uploadFile({cloudPath,filePath:file.path});if(!uploaded.fileID)throw new Error('文件上传失败，请重试');return uploaded.fileID;
+}
+async function createProduct(draft,imageFileID,token){
+ await ensureAdmin();const rules=require('./product-draft'),normalized=rules.normalize(draft);
+ if(config.mode==='cloud')return cloud('createProduct',{draft:normalized,imageFileID,token});
+ const state=read();state.productRequests=state.productRequests||{};const signature=JSON.stringify({draft:normalized,imageFileID});
+ if(state.productRequests[token]){const old=state.productRequests[token];if(old.signature!==signature)throw new Error('保存标识已用于其他商品');return state.products.find(p=>p.id===old.id)}
+ const id='np_'+token,product=rules.build(normalized,id,imageFileID);state.products.push(product);state.productRequests[token]={id,signature};write(state);return product;
+}
+async function updateProductInfo(id,info){await ensureAdmin();if(config.mode==='cloud')return cloud('updateProductInfo',{id,...info});const rules=require('./product-draft'),state=read(),p=state.products.find(p=>p.id===id);if(!p)throw new Error('商品不存在');const normalized=rules.normalize({...p,priceCents:p.skus[0].price,stock:p.skus[0].stock,...info});for(const k of ['name','description','ip','type','group'])p[k]=normalized[k];if(info.imageFileID){p.image=info.imageFileID;p.gallery=[info.imageFileID]}write(state);return p}
+async function previewProductImport(fileID,group){await ensureAdmin();return cloud('previewProductImport',{fileID,group})}
+async function commitProductImport(jobId,offset){await ensureAdmin();return cloud('commitProductImport',{jobId,offset})}
+async function productImportTemplate(){await ensureAdmin();return cloud('getProductImportTemplate')}
 async function orderPage({offset=0,status='all',limit=20}={}){
  await runtime.ready(config);
  if(config.mode==='cloud')return cloud('orderPage',{offset,status,limit});
@@ -113,4 +135,4 @@ async function createPaymentTestOrder(token){
 }
 
 function clearPersonalData(){runtime.assertReady(config);if(config.mode!=='demo')throw new Error('正式订单信息请联系店主申请处理');[KEY,'addresses.v2','address.v1','address.selected.v2','checkout.v1'].forEach(k=>wx.removeStorageSync(k));privacy.revoke()}
-module.exports={...presentation,adminOrderPage,createPaymentTestOrder,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};
+module.exports={...presentation,requestToken,uploadProductFile,createProduct,updateProductInfo,previewProductImport,commitProductImport,productImportTemplate,adminPromotion,setPromotion,adminOrderPage,createPaymentTestOrder,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};

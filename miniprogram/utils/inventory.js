@@ -3,8 +3,10 @@ function cents(value){if(typeof value!=='string'||!/^\d{1,6}(\.\d{1,2})?$/.test(
 function patchProduct(product,patch){
  if(!product||!Array.isArray(product.skus))fail('商品不存在');
  if(!patch||typeof patch.skuId!=='string'||!Number.isInteger(patch.priceCents)||patch.priceCents<=0||patch.priceCents>99999999||!Number.isInteger(patch.stockDelta)||Math.abs(patch.stockDelta)>10000||typeof patch.active!=='boolean')fail('商品修改参数无效');
+ const hasConfirmation=Object.prototype.hasOwnProperty.call(patch,'confirmForSale');
+ if(hasConfirmation&&typeof patch.confirmForSale!=='boolean')fail('售卖资料确认参数必须为布尔值');
  const p=JSON.parse(JSON.stringify(product)),sku=p.skus.find(s=>s.id===patch.skuId);if(!sku)fail('商品款式不存在');
  const stock=sku.stock+patch.stockDelta;if(!Number.isSafeInteger(stock)||stock<0||stock>1000000)fail('库存调整后不能为负数或超过上限');
- sku.stock=stock;sku.price=patch.priceCents;p.active=patch.active;p.updatedAt=Date.now();return p;
+ sku.stock=stock;sku.price=patch.priceCents;p.active=patch.active;if(hasConfirmation)p.needsReview=!patch.confirmForSale;p.updatedAt=Date.now();return p;
 }
 module.exports={cents,patchProduct};

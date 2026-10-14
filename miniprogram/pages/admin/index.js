@@ -24,6 +24,7 @@ Page({
  async ship(e){if(this.data.busy)return;this.setData({busy:true});try{await s.ensureAdmin();const order=await s.action(e.currentTarget.dataset.id,'ship',{carrier:this.data.carrier,tracking:this.data.tracking.trim(),carrierCode:this.data.carrierCode});this.setData({tracking:''});await this.reload();if(order.wechatShippingError)s.err(new Error(order.wechatShippingError))}catch(e){s.err(e)}finally{this.setData({busy:false})}},
  async pickup(e){if(this.data.busy)return;this.setData({busy:true});try{await s.ensureAdmin();await s.action(e.currentTarget.dataset.id,e.currentTarget.dataset.action,{pickupCode:this.data.pickupCode.trim()});this.setData({pickupCode:''});await this.reload()}catch(e){s.err(e)}finally{this.setData({busy:false})}},
  async products(){try{await s.ensureAdmin();wx.navigateTo({url:'/pages/admin-products/index'})}catch(e){s.err(e)}},
+ async settings(){try{await s.ensureAdmin();wx.navigateTo({url:'/merchant/settings/index'})}catch(e){s.err(e)}},
  carrierChange(e){const index=Number(e.detail.value),carrier=this.data.carriers[index];if(carrier)this.setData({carrierIndex:index,carrier:carrier.name,carrierCode:carrier.id})},
  async syncShipping(e){if(this.data.busy)return;this.setData({busy:true});try{await s.ensureAdmin();await s.cloud('syncShipping',{id:e.currentTarget.dataset.id});await this.reload()}catch(e){s.err(e)}finally{this.setData({busy:false})}},
  open(e){if(this.data.authorized)wx.navigateTo({url:'/pages/order/index?id='+e.currentTarget.dataset.id})}
