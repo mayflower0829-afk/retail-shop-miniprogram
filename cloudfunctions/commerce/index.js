@@ -1,9 +1,10 @@
 const cloud=require('wx-server-sdk'),crypto=require('crypto'),domain=require('./domain'),pay=require('./pay'),inventory=require('./inventory'),business=require('./business'),consent=require('./consent-version'),paymentTest=require('./payment-test');
-const VERSION='0.1.5';
+const VERSION='0.1.6';
 const orderShipping=require('./order-shipping'),maintenance=require('./maintenance');
 const authorization=require('./authorization');
 const shopSettings=require('./shop-settings');
 const productManagement=require('./product-management');
+const merchantOperations=require('./merchant-operations');
 function runtimeInfo(){let paymentConfigured=false;try{pay.config();paymentConfigured=true}catch(e){}return {version:VERSION,checkoutEnabled:process.env.ENABLE_CHECKOUT==='true',paymentConfigured,paymentTestEnabled:process.env.ENABLE_PAYMENT_TEST==='true',adminConfigured:authorization.resolveAdminOpenIds(process.env).length>0,orderShippingEnabled:orderShipping.enabled(),automaticExpiryConfigured:!!process.env.ORDER_MAINTENANCE_TOKEN,automaticExpiryEnabled:process.env.ORDER_EXPIRY_TIMER_ENABLED==='true'}}
 function viewOrder(o,openid){const owner=o._openid===openid;return {...o,canPay:owner&&o.status==='pending'&&o.expiresAt>Date.now()&&(paymentTest.isTest(o)?process.env.ENABLE_PAYMENT_TEST==='true':process.env.ENABLE_CHECKOUT==='true'),canCancel:owner&&o.status==='pending',canReceive:owner&&o.status==='shipped'&&!paymentTest.isTest(o),viewAsAdmin:!owner,usesWechatReceipt:orderShipping.enabled()&&!paymentTest.isTest(o)}}
 cloud.init({env:cloud.DYNAMIC_CURRENT_ENV});const db=cloud.database();
@@ -30,6 +31,7 @@ exports.main=async(event)=>{
  const {OPENID:openid}=wxContext;if(!openid)return {ok:false,message:'请通过微信小程序调用'};
  try{
   const a=event.action;
+  if(merchantOperations.ACTIONS.has(a)){if(!isAdmin(openid))fail('仅商家管理员可访问');return {ok:true,data:await merchantOperations.run({db,cloud,openid},event)}}
   if(productManagement.ACTIONS.has(a)){if(!isAdmin(openid))fail('仅商家管理员可管理商品');return {ok:true,data:await productManagement.run({db,cloud,openid,envId:wxContext.ENV||process.env.TCB_ENV},event)}}
   if(a==='shippingPolicy')return {ok:true,data:await shippingPolicy()};
   if(a==='adminPromotion'){if(!isAdmin(openid))fail('仅商家管理员可查看活动设置');return {ok:true,data:await shippingPolicy()}}
@@ -46,7 +48,7 @@ exports.main=async(event)=>{
     if(old){if(old.signature!==signature)fail('保存标识已用于其他修改');return old.product}
     const ref=tx.collection('products').doc(event.id),{data:p}=await ref.get();if(p._createdBy && event.patch && event.patch.active && (!p.image||p.image.includes('placeholder.jpg')))fail('请先补充商品图片再上架');const updated=inventory.patchProduct(p,event.patch);
     await ref.update({data:{skus:updated.skus,active:updated.active,needsReview:updated.needsReview,updatedAt:updated.updatedAt}});
-    const result=productManagement.publicProduct({...updated,id:event.id});await log.set({data:{_openid:openid,productId:event.id,signature,product:result,createdAt:Date.now()}});return result;
+    const result=productManagement.publicProduct({...updated,id:event.id});await log.set({data:{_openid:openid,productId:event.id,signature,product:result,before:{priceCents:p.skus.find(x=>x.id===event.patch.skuId).price,stock:p.skus.find(x=>x.id===event.patch.skuId).stock,active:p.active},createdAt:Date.now()}});return result;
    });return {ok:true,data:product};
   }
   if(a==='orderPage'){
@@ -64,7 +66,7 @@ exports.main=async(event)=>{
    if(!isAdmin(openid))fail('仅商家管理员可访问');
    const offset=event.offset===undefined?0:event.offset,limit=event.limit===undefined?20:event.limit,status=event.status||'all';
    if(!Number.isInteger(offset)||offset<0||offset>100000||!Number.isInteger(limit)||limit<1||limit>50||!['all','pending','paid','shipped','completed','cancelled','ready_pickup','refund_requested','refunded'].includes(status))fail('分页参数无效');
-   let where={};if(status!=='all')where.status=status==='refund_requested'?db.command.in(['refund_requested','refunded']):status;
+   let where=merchantOperations.orderFilter(db,status,event.deliveryMode||'all',event.keyword||'');
    const cursor=event.cursor;
    if(cursor!==undefined&&cursor!==null){
     if(typeof cursor!=='object'||!Number.isSafeInteger(cursor.createdAt)||cursor.createdAt<0||typeof cursor.id!=='string'||!/^[a-zA-Z0-9_-]{6,40}$/.test(cursor.id))fail('分页游标无效');

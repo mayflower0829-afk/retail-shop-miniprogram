@@ -1,1 +1,2 @@
 .product-photo{width:100%;height:420rpx;display:block;margin-bottom:24rpx;border-radius:20rpx;background:#fffcfa}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:18rpx;margin-bottom:24rpx}.photo-card image{width:100%;height:240rpx;border-radius:18rpx}.photo-card .row{font-size:22rpx;padding:10rpx 4rpx}

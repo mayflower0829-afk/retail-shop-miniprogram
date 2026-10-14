@@ -20,3 +20,6 @@ product-images/
 *.zip
 *.log
 coverage/
+
+# Deployment-only private files
+*.private.*

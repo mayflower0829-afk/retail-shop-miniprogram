@@ -77,7 +77,8 @@
       "pages": [
         "new-product/index",
         "import/index",
-        "settings/index"
+        "settings/index",
+        "export/index"
       ]
     }
   ]

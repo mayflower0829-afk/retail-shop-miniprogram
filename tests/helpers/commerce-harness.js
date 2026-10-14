@@ -27,9 +27,13 @@ function harness() {
     return Object.entries(filter).every(([key, value]) => {
       if (key === '$and') return value.every(condition => matches(row, condition));
       if (key === '$or') return value.some(condition => matches(row, condition));
-      if (value && value.$in) return value.$in.includes(row[key]);
-      if (value && Object.hasOwn(value, '$lt')) return row[key] < value.$lt;
-      return row[key] === value;
+      const actual=key.split('.').reduce((v,k)=>v&&v[k],row);
+      if(value && Object.hasOwn(value,'$ne'))return actual!==value.$ne;
+      if(value && value.$regex!==undefined)return typeof actual==='string'&&new RegExp(value.$regex,value.$options||'').test(actual);
+      if(value && Object.hasOwn(value,'$gte'))return actual>=value.$gte;
+      if (value && value.$in) return value.$in.includes(actual);
+      if (value && Object.hasOwn(value, '$lt')) return actual < value.$lt;
+      return actual === value;
     });
   }
   function collection(name, source = collections) {
@@ -40,6 +44,8 @@ function harness() {
       let offset = 0, limit = 100;
       const sort = [];
       const result = {
+        field(){return result;},
+        async count(){return {total:[...rows.values()].filter(row=>matches(row,filter)).length}},
         where(next) { filter = { ...filter, ...next }; return result; },
         orderBy(key, direction) { sort.push([key, direction]); return result; },
         skip(value) { offset = value; return result; },
@@ -81,7 +87,8 @@ function harness() {
     };
   }
   const db = {
-    command: { in: values => ({ $in: values }), lt: value => ({ $lt: value }), and: values => ({ $and: values }), or: values => ({ $or: values }) },
+    RegExp:value=>({$regex:value.regexp,$options:value.options}),
+    command: { neq:value=>({$ne:value}),gte:value=>({$gte:value}), in: values => ({ $in: values }), lt: value => ({ $lt: value }), and: values => ({ $and: values }), or: values => ({ $or: values }) },
     collection,
     async runTransaction(callback) {
       const source = Object.fromEntries(Object.entries(collections).map(([name, values]) => [name, new Map([...values].map(([id, value]) => [id, clone(value)]))]));

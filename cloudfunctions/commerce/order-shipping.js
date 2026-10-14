@@ -6,7 +6,10 @@ const CARRIERS = [
 ];
 function enabled(env=process.env){return env.ENABLE_ORDER_SHIPPING==='true'}
 function checkResult(r){const code=r&&(r.errcode===undefined?r.errCode:r.errcode);if(!r||code!==undefined&&code!==0){const e=new Error('微信发货信息未同步，请重试或在公众平台处理');e.code=code;throw e}return r}
-function api(cloud){return cloud.openapi({convertCase:false}).wxa.sec.order}
+function api(cloud){
+ if(!process.env.WX_APP_SECRET)return cloud.openapi({convertCase:false}).wxa.sec.order;
+ const http=require('./wechat-openapi');return {getOrder:data=>http.call('/wxa/sec/order/get_order',data),uploadShippingInfo:data=>http.call('/wxa/sec/order/upload_shipping_info',data),isTradeManaged:data=>http.call('/wxa/sec/order/is_trade_managed',data)};
+}
 function description(o){const text=(o.lines||[]).map(l=>String(l.name||'商品')+'×'+l.qty).join('；');if(!text)throw new Error('订单缺少商品信息');return [...text].slice(0,120).join('')}
 function payload(o,env=process.env){
  if(!o||o.kind==='payment_test'||!o.transactionId||!o._openid)throw new Error('仅真实已付款商品订单可同步发货');

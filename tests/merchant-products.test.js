@@ -80,3 +80,25 @@ test('wrong-owner and wrong-environment uploads never reach storage downloads',(
  assert.throws(()=>management.verifyFileID(id,'admin','image','other-env'));
  assert.throws(()=>management.imageExtension(Buffer.from('text pretending to be PNG')));
 });
+test('multiple photos preserve order and stable file IDs, reject invalid lists and remain safe on creation retries',async()=>{
+ const h=harness(),first=photo(h,'multi-first-photo'),second=photo(h,'multi-second-photo');
+ const event={action:'createProduct',draft,imageFileIDs:[second,first],token:'multi-product-token'};
+ const result=await h.main(event);assert.equal(result.ok,true);assert.deepEqual(result.data.gallery,[second,first]);assert.equal(result.data.image,second);
+ h.collections.products.get(result.data.id).skus[0].stock=2;
+ assert.equal((await h.main(event)).data.skus[0].stock,2);
+ const catalog=(await h.main({action:'catalog'})).data.find(x=>x.id===result.data.id);
+ assert.deepEqual(catalog.galleryFileIDs,[second,first]);assert.match(catalog.gallery[0],/^https:/);
+ for(const files of [[''],[null],[first,first],Array.from({length:10},(_,i)=>'photo-'+i)])assert.equal((await h.main({...event,imageFileIDs:files,token:'invalid-photo-list'})).ok,false);
+ const legacy={action:'createProduct',draft,imageFileID:first,token:'legacy-single-photo'};
+ const old=await h.main(legacy);assert.equal(old.ok,true);assert.equal((await h.main({...legacy,imageFileID:undefined,imageFileIDs:[first]})).data.id,old.data.id);
+});
+test('another authorized owner can retain existing photos but cannot attach an unrelated administrator upload',async()=>{
+ const h=harness(),first=photo(h,'owner-first-photo'),second=photo(h,'owner-second-photo');
+ const original=await h.main({action:'createProduct',draft,imageFileIDs:[first,second],token:'owner-gallery-product'});
+ h.as('second-admin');
+ const base={action:'updateProductInfo',id:original.data.id,name:draft.name,group:draft.group,type:draft.type,ip:draft.ip,description:draft.description};
+ const changed=await h.main({...base,imageFileIDs:[second,first]});assert.equal(changed.ok,true);assert.equal(changed.data.image,second);assert.equal(changed.data.skus[0].stock,7);
+ const unrelated=photo(h,'unrelated-owner-upload');assert.equal((await h.main({...base,imageFileIDs:[unrelated]})).ok,false);
+ const metadata=await h.main({...base,name:'只修改名称'});assert.deepEqual(metadata.data.gallery,[second,first]);
+ const cleared=await h.main({...base,imageFileIDs:[]});assert.equal(cleared.ok,true);assert.equal(cleared.data.active,false);assert.equal(cleared.data.needsReview,true);assert.deepEqual(cleared.data.gallery,[]);assert.equal(cleared.data.skus[0].price,2000);
+});

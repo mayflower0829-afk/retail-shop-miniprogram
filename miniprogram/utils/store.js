@@ -6,7 +6,7 @@ function write(s){runtime.assertReady(config);wx.setStorageSync(KEY,s)}
 const statusNames={pending:'待付款',paid:'待发货',shipped:'待收货',ready_pickup:'待自取',completed:'已完成',cancelled:'已取消',refund_requested:'售后处理中',refunded:'已退款'};
 function orderStatusName(o){if(o.kind==='payment_test')return ({pending:'待测试付款',paid:'测试已付款',cancelled:'测试已取消'})[o.status]||statusNames[o.status];return o.deliveryMode==='pickup'&&o.status==='paid'?'待备货':statusNames[o.status]}
 function money(n){return (n/100).toFixed(2)}
-function decorate(p,promotion=config.promotion){const skus=p.skus.map(k=>({...k,salePrice:domain.salePrice(k.price,promotion)}));return {...p,displayName:presentation.productTitle(p),skus,priceText:money(Math.min(...skus.map(k=>k.salePrice))),originalPriceText:money(Math.min(...skus.map(k=>k.price))),hasDiscount:!!promotion.enabled,promotionTitle:promotion.title,stock:skus.reduce((n,s)=>n+s.stock,0)}}
+function decorate(p,promotion=config.promotion){const skus=p.skus.map(k=>({...k,salePrice:domain.salePrice(k.price,promotion)}));return {...p,displayName:presentation.productTitle(p),skus,priceText:money(Math.min(...skus.map(k=>k.salePrice))),originalPriceText:money(Math.min(...skus.map(k=>k.price))),discountBps:promotion.enabled?promotion.discountBps:10000,hasDiscount:!!promotion.enabled,promotionTitle:promotion.title,stock:skus.reduce((n,s)=>n+s.stock,0)}}
 async function cloud(action,data={}){await runtime.ready(config);if(config.mode!=='cloud')throw new Error('当前开发模式未接入云端店铺');let response;try{response=await wx.cloud.callFunction({name:'commerce',data:{...data,action}})}catch(e){throw new Error('暂时无法连接店铺，请稍后重试')}const result=response&&response.result;if(!result||result.ok!==true)throw new Error(result&&result.message||'店铺服务尚未准备好，请联系店主');return result.data}
 async function catalog(policy){await runtime.ready(config);policy=policy||await shippingPolicy();return (config.mode==='demo'?read().products:await cloud('catalog')).filter(p=>p.active).map(p=>decorate(p,policy.promotion))}
 async function createOrder(items,address,token,options={}){
@@ -42,14 +42,15 @@ async function uploadProductFile(file,purpose,token){
  const {cloudPath}=await cloud('prepareProductFile',{purpose,ext,token});
  const uploaded=await wx.cloud.uploadFile({cloudPath,filePath:file.path});if(!uploaded.fileID)throw new Error('文件上传失败，请重试');return uploaded.fileID;
 }
-async function createProduct(draft,imageFileID,token){
+async function createProduct(draft,imageFileIDs,token){
+ const gallery=Array.isArray(imageFileIDs)?imageFileIDs:imageFileIDs?[imageFileIDs]:[];const imageFileID=gallery[0]||'';
  await ensureAdmin();const rules=require('./product-draft'),normalized=rules.normalize(draft);
- if(config.mode==='cloud')return cloud('createProduct',{draft:normalized,imageFileID,token});
- const state=read();state.productRequests=state.productRequests||{};const signature=JSON.stringify({draft:normalized,imageFileID});
+ if(config.mode==='cloud')return cloud('createProduct',{draft:normalized,imageFileIDs:gallery,token});
+ const state=read();state.productRequests=state.productRequests||{};const signature=JSON.stringify({draft:normalized,imageFileIDs:gallery});
  if(state.productRequests[token]){const old=state.productRequests[token];if(old.signature!==signature)throw new Error('保存标识已用于其他商品');return state.products.find(p=>p.id===old.id)}
- const id='np_'+token,product=rules.build(normalized,id,imageFileID);state.products.push(product);state.productRequests[token]={id,signature};write(state);return product;
+ const id='np_'+token,product={...rules.build(normalized,id,imageFileID),gallery};state.products.push(product);state.productRequests[token]={id,signature};write(state);return product;
 }
-async function updateProductInfo(id,info){await ensureAdmin();if(config.mode==='cloud')return cloud('updateProductInfo',{id,...info});const rules=require('./product-draft'),state=read(),p=state.products.find(p=>p.id===id);if(!p)throw new Error('商品不存在');const normalized=rules.normalize({...p,priceCents:p.skus[0].price,stock:p.skus[0].stock,...info});for(const k of ['name','description','ip','type','group'])p[k]=normalized[k];if(info.imageFileID){p.image=info.imageFileID;p.gallery=[info.imageFileID]}write(state);return p}
+async function updateProductInfo(id,info){await ensureAdmin();if(config.mode==='cloud')return cloud('updateProductInfo',{id,...info});const rules=require('./product-draft'),state=read(),p=state.products.find(p=>p.id===id);if(!p)throw new Error('商品不存在');const normalized=rules.normalize({...p,priceCents:p.skus[0].price,stock:p.skus[0].stock,...info});for(const k of ['name','description','ip','type','group'])p[k]=normalized[k];if(info.imageFileIDs){p.image=info.imageFileIDs[0]||'/assets/placeholder.jpg';p.gallery=info.imageFileIDs;if(!p.gallery.length){p.active=false;p.needsReview=true}}else if(info.imageFileID){p.image=info.imageFileID;p.gallery=[info.imageFileID]}write(state);return p}
 async function previewProductImport(fileID,group){await ensureAdmin();return cloud('previewProductImport',{fileID,group})}
 async function commitProductImport(jobId,offset){await ensureAdmin();return cloud('commitProductImport',{jobId,offset})}
 async function productImportTemplate(){await ensureAdmin();return cloud('getProductImportTemplate')}
@@ -125,14 +126,19 @@ async function pay(o){
  if(paymentError)throw new Error(/cancel/i.test(paymentError.errMsg||paymentError.message||'')?'已取消付款，订单仍待付款':'付款未完成，请刷新订单状态');
  throw new Error('支付结果仍在确认，请刷新订单状态，避免重复付款');
 }
-async function adminOrderPage({offset=0,status='all',limit=20,cursor=null}={}){
+async function adminOrderPage({offset=0,status='all',limit=20,cursor=null,deliveryMode='all',keyword=''}={}){
  await ensureAdmin();
- return config.mode==='demo'?orderPage({offset,status,limit}):cloud('adminOrderPage',{offset,status,limit,cursor});
+ if(config.mode==='cloud')return cloud('adminOrderPage',{offset,status,limit,cursor,deliveryMode,keyword});
+ const key=keyword.trim().toLowerCase(),list=read().orders.filter(o=>(status==='all'||(status==='refund_requested'?['refund_requested','refunded'].includes(o.status):o.status===status))&&(deliveryMode==='all'||(deliveryMode==='pickup'?o.deliveryMode==='pickup':o.deliveryMode!=='pickup'&&o.kind!=='payment_test'))&&(!key||[o.id,o.address&&o.address.phone,o.pickupContact&&o.pickupContact.phone].some(x=>String(x||'').toLowerCase().includes(key))));return {orders:list.slice(offset,offset+limit),hasMore:list.length>offset+limit,nextOffset:offset+limit};
 }
+async function merchantOverview(){await ensureAdmin();if(config.mode==='cloud')return cloud('merchantOverview');const orders=read().orders.filter(o=>o.kind!=='payment_test'),count=fn=>orders.filter(fn).length;return {...require('./shop-analytics').paidSummary(orders,Date.now(),true),deliveryToShip:count(o=>o.status==='paid'&&o.deliveryMode!=='pickup'),pickupToPrepare:count(o=>o.status==='paid'&&o.deliveryMode==='pickup'),pickupReady:count(o=>o.status==='ready_pickup'),refundRequests:count(o=>o.status==='refund_requested'),shippingUnsynced:0}}
+async function inventoryHistory(id){await ensureAdmin();if(config.mode==='cloud')return cloud('inventoryHistory',{id});return Object.values(read().managementRequests||{}).filter(x=>x.id===id).map(x=>({createdAt:x.product.updatedAt,operator:'当前账号',stockDelta:x.patch.stockDelta,priceCents:x.patch.priceCents,skuName:x.product.skus.find(y=>y.id===x.patch.skuId).name,active:x.product.active})).reverse().slice(0,30)}
+async function exportMerchantData(kind,from,to){await ensureAdmin();return cloud('exportMerchantData',{kind,from,to})}
+async function merchantIdentity(){await ensureAdmin();return config.mode==='demo'?{openid:'demo'}:cloud('whoami')}
 async function createPaymentTestOrder(token){
  await ensureAdmin();if(config.mode!=='cloud')throw new Error('支付测试需要连接真实云端店铺');privacy.assertConsent();
  return cloud('createPaymentTestOrder',{token,privacyConsent:privacy.snapshot()});
 }
 
 function clearPersonalData(){runtime.assertReady(config);if(config.mode!=='demo')throw new Error('正式订单信息请联系店主申请处理');[KEY,'addresses.v2','address.v1','address.selected.v2','checkout.v1'].forEach(k=>wx.removeStorageSync(k));privacy.revoke()}
-module.exports={...presentation,requestToken,uploadProductFile,createProduct,updateProductInfo,previewProductImport,commitProductImport,productImportTemplate,adminPromotion,setPromotion,adminOrderPage,createPaymentTestOrder,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};
+module.exports={...presentation,merchantOverview,inventoryHistory,exportMerchantData,merchantIdentity,requestToken,uploadProductFile,createProduct,updateProductInfo,previewProductImport,commitProductImport,productImportTemplate,adminPromotion,setPromotion,adminOrderPage,createPaymentTestOrder,clearPersonalData,isAdmin,ensureAdmin,quickAdd,config,catalog,shippingPolicy,adminProducts,updateProduct,orderPage,createOrder,orders,order,action,cart,saveCart,add,address,addresses,chooseAddress,saveAddress,defaultAddress,deleteAddress,favorites,toggleFavorite,money,statusNames,orderStatusName,err,pay,cloud};
