@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.merchant-products-page .row .primary{flex:1}.merchant-product-card{align-items:flex-start}.merchant-product-card .thumb{width:138rpx;height:138rpx}.merchant-product-card .price{font-size:32rpx}.merchant-product-card .muted{font-size:21rpx}.merchant-product-card .tag{margin-bottom:0}.stock-count{font-size:22rpx;color:#96828f;white-space:nowrap}.stock-low{color:#a46d29}.state-active{color:#527c68;background:#eaf3ed}.state-draft{color:#96828f;background:#f3eef0}.editor-panel>.primary{margin-top:26rpx}.editor-panel .note>.price{font-size:32rpx}.editor-panel .field{margin-bottom:20rpx}

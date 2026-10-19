@@ -11,7 +11,7 @@ function harness(file,overrides={}){
  const images=require('../miniprogram/utils/product-images');let page;
  const requireLocal=name=>name.endsWith('/ui')?uiModule.exports:name.endsWith('/product-images')?images:name.endsWith('/search')?require('../miniprogram/utils/search'):service;
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../miniprogram',file),'utf8'),{require:requireLocal,wx,Page:v=>page=v,setTimeout,clearTimeout,Map,Set});
- page.data=clone(page.data);page.setData=v=>{calls.patches.push(clone(v));Object.assign(page.data,clone(v))};return {page,calls,service,wx};
+ page.data=clone(page.data);page.setData=(v,done)=>{calls.patches.push(clone(v));Object.assign(page.data,clone(v));if(done)done()};return {page,calls,service,wx};
 }
 test('catalogues keep the full source off the rendering bridge and transfer only visible cards',async()=>{
  for(const name of ['home','category']){const list=Array.from({length:65},(_,i)=>product('item-'+i));const {page,calls}=harness('pages/'+name+'/index.js',{catalog:async()=>list});await page.reload();assert.equal(page.products.length,65);assert.equal(page.data.visible.length,20);assert.ok(calls.patches.every(p=>!Object.hasOwn(p,'products')));page.more();assert.equal(page.data.visible.length,40);page.onUnload()}
@@ -62,4 +62,17 @@ test('cart checkout blocks selected items with insufficient stock and blocks sta
 
 test('a cart quantity above remaining stock can be reduced until it is buyable',async()=>{
  const {page,service}=harness('pages/cart/index.js');service.saveCart([{skuId:'item-1-sku',qty:5,selected:true}]);await page.reload();const e={currentTarget:{dataset:{id:'item-1-sku',delta:-1}}};page.qty(e);assert.equal(page.data.lines[0].qty,4);assert.equal(page.data.lines[0].invalid,true);page.qty(e);assert.equal(page.data.lines[0].qty,3);assert.equal(page.data.lines[0].invalid,false);assert.equal(page.data.count,3);page.onUnload();
+});
+
+test('category filters reset the inner scroll while pagination and refresh preserve it',async()=>{
+ const {page,calls}=harness('pages/category/index.js',{catalog:async()=>Array.from({length:45},(_,i)=>product('item-'+i))});await page.reload();
+ const resetCount=()=>calls.patches.filter(p=>Object.hasOwn(p,'catalogScrollTop')).length;
+ page.scrolled({detail:{scrollTop:680}});page.ip({currentTarget:{dataset:{value:'作品'}}});assert.equal(page.data.catalogScrollTop,0);assert.deepEqual(calls.patches.filter(p=>Object.hasOwn(p,'catalogScrollTop')).map(p=>p.catalogScrollTop),[680,0]);
+ page.scrolled({detail:{scrollTop:420}});const before=resetCount();page.more();await page.reload();assert.equal(resetCount(),before);assert.equal(page._catalogScrollTop,420);
+ page.search({detail:{value:'商品'}});page.confirmSearch();assert.equal(page._catalogScrollTop,0);assert.equal(resetCount(),before+2);
+ page.scrolled({detail:{scrollTop:200}});page.clearSearch();assert.equal(page.data.catalogScrollTop,0);assert.equal(resetCount(),before+4);page.onUnload();
+});
+test('a queued category scroll reset cannot move a hidden page or supersede a newer reset',async()=>{
+ const {page}=harness('pages/category/index.js');await page.reload();const callbacks=[];page.setData=(v,done)=>{Object.assign(page.data,clone(v));if(done)callbacks.push(done)};
+ page.scrolled({detail:{scrollTop:600}});page.ip({currentTarget:{dataset:{value:'作品'}}});page.scrolled({detail:{scrollTop:300}});page.resetFilters();callbacks[0]();assert.equal(page.data.catalogScrollTop,300);page.onHide();callbacks[1]();assert.equal(page.data.catalogScrollTop,300);page.onUnload();
 });

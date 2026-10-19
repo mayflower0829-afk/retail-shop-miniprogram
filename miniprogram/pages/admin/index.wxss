@@ -1,1 +1,5 @@
 /* 共用样式位于 app.wxss */
+
+.fulfillment-editor{margin-top:24rpx;padding:20rpx;border:1rpx solid #ecdfe4;border-radius:20rpx;background:#fffbf7}
+
+.menu-card .section{margin:0 0 6rpx}.menu-card .muted{font-size:22rpx}.menu-card>.link{flex-shrink:0;white-space:nowrap}.menu-card>view{min-width:0}.admin-page>.section{margin-top:34rpx}.fulfillment-editor>.section{margin:0 0 20rpx;font-size:27rpx}.fulfillment-editor .row>button{flex:1;min-width:0;padding-left:12rpx;padding-right:12rpx}
