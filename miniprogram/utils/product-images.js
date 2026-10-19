@@ -1,4 +1,4 @@
-const assets = require('../data/image-assets');
+const assets = require('../data/image-assets'), ui = require('./ui');
 function assetFor(id) { return Object.prototype.hasOwnProperty.call(assets, id) ? assets[id] : null; }
 function detailUrl(id, preview = false) {
   const asset = assetFor(id);
@@ -12,7 +12,7 @@ function galleryFor(p, packageRoot) {
   if (asset && asset.root === packageRoot && gallery.every(url => url.startsWith('/assets/'))) return asset.gallery.slice();
   return gallery.filter(Boolean);
 }
-function openPreview(id) { wx.navigateTo({ url: detailUrl(id, true) }); }
+function openPreview(id, page) { return ui.navigate(page, detailUrl(id, true)); }
 const previewFiles = new Map();
 function previewPath(url) {
   if (!url.startsWith('/') || url.startsWith('//')) return Promise.resolve(url);

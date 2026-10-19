@@ -1,4 +1,4 @@
-<view class="page identity-page">
+<view class="page identity-page page-motion">
   <view class="title">店主身份核对</view>
   <view class="subtitle">店铺管理权限需由店铺后台授权</view>
   <view class="card space-top">
@@ -9,14 +9,14 @@
     <view class="space-top"><text class="link" bindtap="privacy">查看隐私政策</text></view>
     <checkbox-group bindchange="consentChanged" class="space-top"><label class="identity-consent"><checkbox value="identity" checked="{{checked}}" color="#c65370"/><text>我同意仅为店主身份核对查询并显示本人身份标识</text></label></checkbox-group>
     <view wx:if="{{error}}" class="error">{{error}}</view>
-    <button class="primary space-top" bindtap="verifyIdentity" loading="{{loading}}" disabled="{{!checked || loading}}">{{verified?'重新核对身份':'同意并核对身份'}}</button>
+    <button class="primary space-top" bindtap="verifyIdentity" loading="{{loading}}" disabled="{{!checked || loading}}" hover-start-time="30" hover-stay-time="80">{{verified?'重新核对身份':'同意并核对身份'}}</button>
   </view>
   <view wx:if="{{verified}}" class="card">
     <view class="section">{{isAdmin?'已获店铺管理权限':'尚未获店铺管理权限'}}</view>
     <view wx:if="{{!isAdmin}}" class="note">请将下面的本人身份标识交给店铺后台负责人核对并授权。授权完成后返回此页重新核对。</view>
     <view class="label">本人身份标识（OpenID）</view>
     <text class="identity-value" selectable="true">{{openid}}</text>
-    <button class="secondary space-top" bindtap="copyIdentity" disabled="{{loading}}">复制本人身份标识</button>
-    <button wx:if="{{isAdmin}}" class="primary space-top" bindtap="manage" disabled="{{loading}}">进入店铺管理</button>
+    <button class="secondary space-top" bindtap="copyIdentity" disabled="{{loading}}" hover-start-time="30" hover-stay-time="80">复制本人身份标识</button>
+    <button wx:if="{{isAdmin}}" class="primary space-top" bindtap="manage" disabled="{{loading}}" hover-start-time="30" hover-stay-time="80">进入店铺管理</button>
   </view>
 </view>
