@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.profile-header .title{word-break:break-all}.order-shortcuts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.order-shortcuts>view{min-width:0}.shortcut-symbol{width:56rpx;margin:0 auto}.list-row>text:last-child{flex-shrink:0}

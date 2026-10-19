@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "找你喜欢的谷"
+  "navigationBarTitleText": "找你喜欢的谷",
+  "usingComponents": {
+    "product-image": "/components/product-image/index"
+  }
 }

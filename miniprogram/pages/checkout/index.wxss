@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.fulfillment-panel,.line .grow{word-break:break-all}.delivery-option{min-width:0}.quote-summary .row{align-items:flex-start}.quote-summary .row>text:first-child{flex:1;min-width:0;word-break:break-all}.quote-summary .row>text:last-child,.bottom .primary{flex-shrink:0}

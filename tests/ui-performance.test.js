@@ -14,7 +14,12 @@ function harness(file,overrides={}){
  page.data=clone(page.data);page.setData=(v,done)=>{calls.patches.push(clone(v));Object.assign(page.data,clone(v));if(done)done()};return {page,calls,service,wx};
 }
 test('catalogues keep the full source off the rendering bridge and transfer only visible cards',async()=>{
- for(const name of ['home','category']){const list=Array.from({length:65},(_,i)=>product('item-'+i));const {page,calls}=harness('pages/'+name+'/index.js',{catalog:async()=>list});await page.reload();assert.equal(page.products.length,65);assert.equal(page.data.visible.length,20);assert.ok(calls.patches.every(p=>!Object.hasOwn(p,'products')));page.more();assert.equal(page.data.visible.length,40);page.onUnload()}
+ for(const name of ['home','category']){
+  const list=Array.from({length:65},(_,i)=>({...product('item-'+i),description:'商品详细说明'.repeat(30),gallery:Array(6).fill('/assets/product-detail.jpg'),source:{file:'stock.xlsx',row:i+1}}));
+  const {page,calls}=harness('pages/'+name+'/index.js',{catalog:async()=>list});await page.reload();assert.equal(page.products,list);assert.equal(page.data.visible.length,20);assert.ok(calls.patches.every(p=>!Object.hasOwn(p,'products')));
+  const card=page.data.visible[0];assert.equal(card.skuCount,1);assert.equal(card.priceText,'10.00');assert.equal(card.stock,3);for(const key of ['description','gallery','source','skus'])assert.equal(Object.hasOwn(card,key),false);
+  assert.ok(Buffer.byteLength(JSON.stringify(page.data.visible))<Buffer.byteLength(JSON.stringify(list.slice(0,20)))/2);page.more();assert.equal(page.data.visible.length,40);assert.equal(page.products[0].skus[0].id,'item-0-sku');page.onUnload();
+ }
 });
 test('a slow order-history request cannot delay the first home catalogue',async()=>{
  const history=pending(),{page}=harness('pages/home/index.js',{orders:()=>history.promise});const loading=page.reload();await tick();assert.equal(page.data.visible.length,1);assert.equal(page.data.loading,false);history.resolve([{status:'paid',lines:[{productId:'item-1'}]}]);await loading;assert.ok(page.data.filters.includes('买过'));page.onUnload();
@@ -75,4 +80,12 @@ test('category filters reset the inner scroll while pagination and refresh prese
 test('a queued category scroll reset cannot move a hidden page or supersede a newer reset',async()=>{
  const {page}=harness('pages/category/index.js');await page.reload();const callbacks=[];page.setData=(v,done)=>{Object.assign(page.data,clone(v));if(done)callbacks.push(done)};
  page.scrolled({detail:{scrollTop:600}});page.ip({currentTarget:{dataset:{value:'作品'}}});page.scrolled({detail:{scrollTop:300}});page.resetFilters();callbacks[0]();assert.equal(page.data.catalogScrollTop,300);page.onHide();callbacks[1]();assert.equal(page.data.catalogScrollTop,300);page.onUnload();
+});
+
+test('style-only searches and style selection use full products after card projection',async()=>{
+ for(const name of ['home','category']){
+  const p=product('styles','海风系列');p.skus=[{id:'red',name:'赤霞限定',stock:2,price:2000,salePrice:1000},{id:'blue',name:'蓝月限定',stock:1,price:2000,salePrice:1000}];let selected;
+  const {page,calls}=harness('pages/'+name+'/index.js',{catalog:async()=>[p,product('other')],quickAdd:item=>{selected=item;return item.skus.length===1}});await page.reload();page.search({detail:{value:'蓝月 限定'}});page.confirmSearch();assert.equal(page.data.visible.length,1);assert.equal(page.data.visible[0].id,p.id);assert.equal(page.data.visible[0].skuCount,2);assert.equal(Object.hasOwn(page.data.visible[0],'skus'),false);
+  page.quickAdd({currentTarget:{dataset:{id:p.id}}});assert.equal(selected,p);assert.equal(calls.navigation.length,1);assert.match(calls.navigation[0].url,/id=styles/);assert.equal(calls.errors.length,0);page.onUnload();
+ }
 });

@@ -1,0 +1,2 @@
+:host{display:block}
+.frame{position:relative;width:100%;height:100%;overflow:hidden;background:#f4f3f5;border-radius:inherit}.photo{position:absolute;width:100%;height:100%;display:block;opacity:0;transition:opacity .16s ease-out}.photo.ready{opacity:1}.hint{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#827d85;font-size:22rpx;line-height:1.8}.retry{background:#f4f3f5}.retry-label{font-size:20rpx;color:#a94763}@media (prefers-reduced-motion:reduce){.photo{transition:none}}
