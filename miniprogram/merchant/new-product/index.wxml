@@ -11,7 +11,7 @@
    <view class="photo-grid">
     <view class="photo-card" wx:for="{{photos}}" wx:key="index">
      <view class="photo-media">
-      <image src="{{item.path}}" mode="aspectFit" data-index="{{index}}" bindtap="preview" aria-label="预览商品图片"/>
+      <product-image src="{{item.path}}" mode="aspectFit" data-index="{{index}}" bindtap="preview" aria-label="预览商品图片"/>
       <text wx:if="{{index===0}}" class="cover-badge">封面</text>
       <button class="photo-remove" data-index="{{index}}" catchtap="removePhoto" disabled="{{busy}}" aria-label="移除这张商品图片" hover-class="photo-action-hover" hover-start-time="30" hover-stay-time="80">×</button>
      </view>

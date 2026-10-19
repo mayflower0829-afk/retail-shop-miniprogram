@@ -6,7 +6,7 @@
     <view class="detail-media"><swiper class="detail-gallery" duration="240" current="{{galleryIndex}}" bindchange="galleryChange">
       <swiper-item wx:for="{{gallery}}" wx:key="*this"><image class="detail-image" src="{{item}}" mode="aspectFit" data-index="{{index}}" bindtap="preview" aria-role="button" aria-label="查看商品大图" binderror="imageFailed"/></swiper-item>
     </swiper><view class="gallery-caption"><text>{{hasImage?'轻点查看大图':'商品图片待补充'}}</text><text wx:if="{{gallery.length>1}}" class="gallery-count">{{galleryIndex+1}} / {{gallery.length}}</text></view></view>
-    <view wx:if="{{imageError}}" class="note image-retry" bindtap="retryImage" hover-start-time="30" hover-stay-time="80" hover-class="tap-feedback">{{imageError}}</view>
+    <view wx:if="{{imageError}}" class="note image-retry" bindtap="retryImage" hover-start-time="30" hover-stay-time="80" hover-class="tap-feedback">{{loading?'正在重新加载图片…':imageError}}</view>
     <view class="card detail-summary content-motion">
       <view class="row"><view><text class="price detail-price">¥{{price}}</text><text wx:if="{{p.hasDiscount}}" class="original-price">¥{{originalPrice}}</text></view><button class="favorite-toggle {{favorite?'is-favorite':''}}" bindtap="favorite" aria-label="{{favorite?'取消收藏':'收藏商品'}}" hover-start-time="30" hover-stay-time="80">{{favorite?'♥ 已收藏':'♡ 收藏'}}</button></view>
       <view class="section detail-name">{{p.displayName}}</view>

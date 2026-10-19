@@ -9,7 +9,7 @@
   <view wx:if="{{authorized && !checking && !loading && !orders.length && !error}}" class="empty">没有符合条件的订单</view>
   <view wx:for="{{orders}}" wx:key="id" class="card admin-order">
     <view class="row"><text class="tag">{{item.kind==='payment_test'?'支付测试 · 不发货':item.deliveryMode==='pickup'?'到店自取':'快递配送'}}</text><text class="order-status">{{item.statusName}}</text></view>
-    <view class="admin-order-item row" wx:for="{{item.preview}}" wx:for-item="line" wx:key="skuId"><image class="thumb" src="{{line.image || '/assets/placeholder.jpg'}}" mode="aspectFit" lazy-load/><view class="grow two-lines">{{line.displayName}}</view><text class="muted">×{{line.qty}}</text></view>
+    <view class="admin-order-item row" wx:for="{{item.preview}}" wx:for-item="line" wx:key="skuId"><product-image class="thumb" src="{{line.image || '/assets/placeholder.jpg'}}" mode="aspectFit" lazy-load/><view class="grow two-lines">{{line.displayName}}</view><text class="muted">×{{line.qty}}</text></view>
     <view wx:if="{{item.extraCount}}" class="note">另有{{item.extraCount}}款商品，点订单详情查看</view>
     <view class="row line"><text class="muted">共{{item.quantity}}件</text><text class="price">¥{{item.totalText}}</text></view>
     <view wx:if="{{item.contactName}}" class="note">{{item.deliveryMode==='pickup'?'取货人':'收货人'}}：{{item.contactName}}　{{item.contactPhone}}</view>

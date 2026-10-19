@@ -1,3 +1,4 @@
+const applyDataPatch=require('./helpers/render-data');
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const clone=v=>JSON.parse(JSON.stringify(v)),tick=()=>new Promise(resolve=>setImmediate(resolve));
 const pending=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
@@ -11,7 +12,7 @@ function harness(file,overrides={}){
  const images=require('../miniprogram/utils/product-images');let page;
  const requireLocal=name=>name.endsWith('/ui')?uiModule.exports:name.endsWith('/product-images')?images:name.endsWith('/search')?require('../miniprogram/utils/search'):service;
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../miniprogram',file),'utf8'),{require:requireLocal,wx,Page:v=>page=v,setTimeout,clearTimeout,Map,Set});
- page.data=clone(page.data);page.setData=(v,done)=>{calls.patches.push(clone(v));Object.assign(page.data,clone(v));if(done)done()};return {page,calls,service,wx};
+ page.data=clone(page.data);page.setData=(v,done)=>{calls.patches.push(clone(v));applyDataPatch(page.data,v);if(done)done()};return {page,calls,service,wx};
 }
 test('catalogues keep the full source off the rendering bridge and transfer only visible cards',async()=>{
  for(const name of ['home','category']){
@@ -78,7 +79,7 @@ test('category filters reset the inner scroll while pagination and refresh prese
  page.scrolled({detail:{scrollTop:200}});page.clearSearch();assert.equal(page.data.catalogScrollTop,0);assert.equal(resetCount(),before+4);page.onUnload();
 });
 test('a queued category scroll reset cannot move a hidden page or supersede a newer reset',async()=>{
- const {page}=harness('pages/category/index.js');await page.reload();const callbacks=[];page.setData=(v,done)=>{Object.assign(page.data,clone(v));if(done)callbacks.push(done)};
+ const {page}=harness('pages/category/index.js');await page.reload();const callbacks=[];page.setData=(v,done)=>{applyDataPatch(page.data,v);if(done)callbacks.push(done)};
  page.scrolled({detail:{scrollTop:600}});page.ip({currentTarget:{dataset:{value:'作品'}}});page.scrolled({detail:{scrollTop:300}});page.resetFilters();callbacks[0]();assert.equal(page.data.catalogScrollTop,300);page.onHide();callbacks[1]();assert.equal(page.data.catalogScrollTop,300);page.onUnload();
 });
 
@@ -103,4 +104,44 @@ test('order pagination retries the same offset without dropping cards, deduplica
  const {page}=harness('pages/orders/index.js',{orderPage:async q=>{offsets.push(q.offset);n++;if(n===1)return {orders:[item('a')],hasMore:true,nextOffset:20};if(n===2)throw new Error('offline');if(n===3)return {orders:[item('a'),item('b')],hasMore:true,nextOffset:40};if(n===4)return late.promise;return {orders:[item('filtered')],hasMore:false,nextOffset:20}}});
  await page.reload();await page.more();assert.equal(page.data.visible[0].id,'a');assert.equal(page.offset,20);await page.more();assert.deepEqual(page.data.visible.map(o=>o.id),['a','b']);assert.deepEqual(offsets.slice(0,3),[0,20,20]);
  const old=page.more();await page.filter({currentTarget:{dataset:{id:'completed'}}});late.resolve({orders:[item('stale')],hasMore:false,nextOffset:60});await old;assert.deepEqual(page.data.visible.map(o=>o.id),['filtered']);assert.equal(page.offset,20);page.onUnload();
+});
+
+
+test('home refresh updates purchase tabs without repainting unaffected product cards',async()=>{
+ let history=[];const {page,calls}=harness('pages/home/index.js',{orders:async()=>history});
+ const refresh=async()=>{calls.patches.length=0;await page.reload();return calls.patches.filter(p=>Object.hasOwn(p,'visible')).length};
+ assert.equal(await refresh(),1);assert.equal(page.data.filters.includes('买过'),false);
+ history=[{status:'paid',lines:[{productId:'item-1'}]}];assert.equal(await refresh(),1);assert.equal(page.data.filters.includes('买过'),true);
+ assert.equal(await refresh(),1);
+ history=[{status:'completed',lines:[{productId:'item-1'},{productId:'other'}]}];assert.equal(await refresh(),1);
+ history=[];assert.equal(await refresh(),1);assert.equal(page.data.filters.includes('买过'),false);assert.equal(page.data.visible.length,1);page.onUnload();
+});
+test('the purchased filter refreshes only for changed product membership and falls back when purchase history becomes empty',async()=>{
+ let history=[{status:'paid',lines:[{productId:'a'},{productId:'a'}]}];const {page,calls}=harness('pages/home/index.js',{orders:async()=>history,catalog:async()=>[product('a'),product('b')]});await page.reload();page.filter({currentTarget:{dataset:{value:'买过'}}});assert.deepEqual(page.data.visible.map(p=>p.id),['a']);
+ calls.patches.length=0;history=[{status:'completed',lines:[{productId:'a'}]}];await page.reload();assert.equal(calls.patches.filter(p=>Object.hasOwn(p,'visible')).length,1);
+ history=[{status:'completed',lines:[{productId:'b'}]}];await page.reload();assert.deepEqual(page.data.visible.map(p=>p.id),['b']);
+ history=[];await page.reload();assert.equal(page.data.filter,'全部');assert.equal(page.data.filters.includes('买过'),false);assert.deepEqual(page.data.visible.map(p=>p.id),['a','b']);page.onUnload();
+});
+test('a history failure leaves the purchased filter usable and an obsolete history cannot change a newer home refresh',async()=>{
+ const first=pending();let n=0;const {page}=harness('pages/home/index.js',{orders:()=>++n===1?first.promise:n===2?Promise.resolve([{status:'paid',lines:[{productId:'item-1'}]}]):Promise.reject(new Error('offline'))});
+ const old=page.reload();await tick();await page.reload();first.resolve([]);await old;assert.equal(page.data.filters.includes('买过'),true);
+ page.filter({currentTarget:{dataset:{value:'买过'}}});await page.reload();assert.equal(page.data.filter,'买过');assert.equal(page.data.visible.length,1);page.onUnload();
+});
+test('tapping the active home tab preserves loaded cards and does not cancel pending search',async()=>{
+ const {page,calls}=harness('pages/home/index.js',{catalog:async()=>Array.from({length:45},(_,i)=>product('item-'+i,i===44?'月亮':'星星'))});await page.reload();page.more();const before=calls.patches.length;
+ page.filter({currentTarget:{dataset:{value:'全部'}}});assert.equal(page.data.visible.length,40);assert.equal(page.data.limit,40);assert.equal(calls.patches.length,before);
+ page.search({detail:{value:'月亮'}});page.filter({currentTarget:{dataset:{value:'全部'}}});await new Promise(resolve=>setTimeout(resolve,150));assert.deepEqual(page.data.visible.map(p=>p.id),['item-44']);
+ page.filter({currentTarget:{dataset:{value:'收藏'}}});assert.equal(page.data.visible.length,0);assert.equal(page.data.limit,20);page.onUnload();
+});
+
+
+test('favorites stay in place while new products and delayed purchase history arrive',async()=>{
+ const history=pending(),products=Array.from({length:45},(_,i)=>({...product('favorite-'+i),isNew:i===0}));
+ const {page,calls}=harness('pages/home/index.js',{catalog:async()=>products,orders:()=>history.promise,favorites:()=>products.map(p=>p.id)});
+ assert.equal(page.data.filters.indexOf('收藏'),1);
+ const loading=page.reload();await tick();assert.equal(page.data.filters.indexOf('收藏'),1);assert.ok(page.data.filters.includes('新品'));
+ page.filter({currentTarget:{dataset:{value:'收藏'}}});page.more();const visible=clone(page.data.visible),patchCount=calls.patches.length;
+ history.resolve([{status:'paid',lines:[{productId:products[0].id}]}]);await loading;
+ assert.equal(page.data.filters.indexOf('收藏'),1);assert.ok(page.data.filters.includes('买过'));assert.equal(page.data.filter,'收藏');assert.equal(page.data.limit,40);
+ assert.deepEqual(page.data.visible,visible);assert.equal(calls.patches.slice(patchCount).some(p=>Object.hasOwn(p,'visible')),false);page.onUnload();
 });

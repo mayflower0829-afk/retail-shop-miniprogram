@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "店铺管理"
+  "navigationBarTitleText": "店铺管理",
+  "usingComponents": {
+    "product-image": "/components/product-image/index"
+  }
 }

@@ -1,3 +1,4 @@
+const resolver=require('./legacy-image-resolver');
 const assets = require('../data/image-assets'), ui = require('./ui');
 function assetFor(id) { return Object.prototype.hasOwnProperty.call(assets, id) ? assets[id] : null; }
 function detailUrl(id, preview = false) {
@@ -27,7 +28,8 @@ function previewPath(url) {
   return file;
 }
 async function previewGallery(urls, index) {
-  const files = await Promise.all(urls.map(previewPath));
+  const resolved = await resolver.resolveMany(urls);
+  const files = await Promise.all(resolved.map(previewPath));
   return new Promise((resolve, reject) => wx.previewImage({ current: files[index], urls: files, success: resolve, fail: reject }));
 }
 module.exports = { assetFor, detailUrl, hasImage, galleryFor, openPreview, previewGallery };

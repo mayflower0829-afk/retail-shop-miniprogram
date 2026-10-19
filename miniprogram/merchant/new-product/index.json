@@ -1,1 +1,6 @@
-{"navigationBarTitleText": "商品录入"}
+{
+  "navigationBarTitleText": "商品录入",
+  "usingComponents": {
+    "product-image": "/components/product-image/index"
+  }
+}

@@ -1,3 +1,5 @@
+// Keep legacy local-image preview coverage separate from cloud resolver tests.
+require('../miniprogram/data/image-cloud').filePrefix='';
 const test=require('node:test'),assert=require('node:assert/strict');
 const seed=require('../miniprogram/data/products'),assets=require('../miniprogram/data/image-assets');
 const storage=new Map();let preview,navigation,toast,failPreview=false,copies=0;
