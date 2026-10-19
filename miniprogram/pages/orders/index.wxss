@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.order-heading{align-items:flex-start}.order-heading>.muted{min-width:0;word-break:break-all}.order-product .grow{word-break:break-all}.order-footer{flex-wrap:wrap}.order-footer>view{margin-left:auto;max-width:100%;word-break:break-all}.order-footer .price{white-space:normal}

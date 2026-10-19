@@ -1,4 +1,4 @@
-const s=require('../../utils/store'),drafts=require('../../utils/product-draft'),cache=require('../../utils/merchant-draft'),images=require('../../utils/product-images'),domain=require('../../utils/domain');
+const s=require('../../utils/store'),drafts=require('../../utils/product-draft'),cache=require('../merchant-draft'),images=require('../../utils/product-images'),domain=require('../../utils/domain');
 Page({
  data:{authorized:false,editing:false,busy:false,error:'',name:'',price:'',stock:'',ip:'',description:'',skuName:'',groups:['明谷','盲盒'],groupIndex:0,types:drafts.TYPES,typeIndex:5,active:true,photos:[],salePreview:'—',promotionTitle:'',draftSaved:false},
  onLoad(q){this.id=q.id||'';this.token=s.requestToken();this.photoItems=[];this.closed=false},

@@ -89,3 +89,18 @@ test('style-only searches and style selection use full products after card proje
   page.quickAdd({currentTarget:{dataset:{id:p.id}}});assert.equal(selected,p);assert.equal(calls.navigation.length,1);assert.match(calls.navigation[0].url,/id=styles/);assert.equal(calls.errors.length,0);page.onUnload();
  }
 });
+
+
+test('order cards keep totals and two previews while omitting unused fulfillment data and duplicate lists',async()=>{
+ const raw={id:'order-a',status:'paid',createdAt:1,total:1234,deliveryMode:'delivery',address:{name:'Fixture',phone:'13900000000'},payment:{internal:'not-for-list'},lines:Array.from({length:4},(_,i)=>({skuId:'sku-'+i,name:'商品'+i,skuName:'款式'+i,qty:i+1,image:'/assets/placeholder.jpg',internal:'not-for-list'}))};
+ const {page,calls}=harness('pages/orders/index.js',{orderPage:async()=>({orders:[raw],hasMore:false,nextOffset:20})});await page.reload();
+ const card=page.data.visible[0];assert.equal(card.id,raw.id);assert.equal(card.totalText,'12.34');assert.equal(card.preview.length,2);assert.equal(card.extraCount,2);assert.equal(card.preview[1].qty,2);assert.equal(card.preview[1].displayName,'商品1');assert.equal(card.deliveryMode,'delivery');
+ assert.equal(Object.hasOwn(page.data,'orders'),false);assert.ok(calls.patches.every(p=>!Object.hasOwn(p,'orders')));for(const key of ['address','payment','lines'])assert.equal(Object.hasOwn(card,key),false);assert.equal(Object.hasOwn(card.preview[0],'internal'),false);
+ page.open({currentTarget:{dataset:{id:card.id}}});assert.match(calls.navigation[0].url,/id=order-a$/);assert.equal(raw.lines.length,4);page.onUnload();
+});
+test('order pagination retries the same offset without dropping cards, deduplicates and ignores stale pages after filtering',async()=>{
+ const item=id=>({id,status:'paid',total:100,createdAt:1,lines:[]}),late=pending(),offsets=[];let n=0;
+ const {page}=harness('pages/orders/index.js',{orderPage:async q=>{offsets.push(q.offset);n++;if(n===1)return {orders:[item('a')],hasMore:true,nextOffset:20};if(n===2)throw new Error('offline');if(n===3)return {orders:[item('a'),item('b')],hasMore:true,nextOffset:40};if(n===4)return late.promise;return {orders:[item('filtered')],hasMore:false,nextOffset:20}}});
+ await page.reload();await page.more();assert.equal(page.data.visible[0].id,'a');assert.equal(page.offset,20);await page.more();assert.deepEqual(page.data.visible.map(o=>o.id),['a','b']);assert.deepEqual(offsets.slice(0,3),[0,20,20]);
+ const old=page.more();await page.filter({currentTarget:{dataset:{id:'completed'}}});late.resolve({orders:[item('stale')],hasMore:false,nextOffset:60});await old;assert.deepEqual(page.data.visible.map(o=>o.id),['filtered']);assert.equal(page.offset,20);page.onUnload();
+});

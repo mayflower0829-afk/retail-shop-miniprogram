@@ -3,3 +3,5 @@
 .campaign-strip{align-items:flex-start}.campaign-strip>text:last-child{flex:1;min-width:0;text-align:right;line-height:1.65}
 
 .brand>view{min-width:0;word-break:break-word}.campaign-title{white-space:normal;max-width:45%;overflow-wrap:break-word}.product-meta>view{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8rpx;min-width:0}.product-meta .original-price{margin-left:0}.product-purchase{gap:8rpx;flex-wrap:wrap}.product-purchase .quick-add{width:auto;min-width:0;flex-shrink:0;margin-left:auto}.compact-tabs{min-width:0;flex-wrap:wrap;gap:8rpx 24rpx;width:auto}.result-bar{flex-wrap:wrap;gap:8rpx}.result-bar picker{margin-left:auto}.home-page>.row{align-items:flex-start}
+
+.product{display:flex;flex-direction:column}.product-media{flex-shrink:0}.product-body{flex:1;display:flex;flex-direction:column}.product-ip{min-height:30rpx}.product-purchase{margin-top:auto;padding-top:14rpx}.product-name{word-break:break-word}
