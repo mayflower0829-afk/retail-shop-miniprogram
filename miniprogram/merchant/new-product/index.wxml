@@ -1,1 +1,55 @@
-<view class="page page-motion"><view class="title">{{editing?'商品资料与图片':'新增商品'}}</view><view wx:if="{{error}}" class="error">{{error}}</view><block wx:if="{{authorized}}"><view class="card space-top"><view class="photo-grid"><view class="photo-card" wx:for="{{photos}}" wx:key="index"><image src="{{item.path}}" mode="aspectFit" data-index="{{index}}" bindtap="preview"/><view class="row"><text class="link" data-index="{{index}}" bindtap="cover">{{index===0?'封面':'设为封面'}}</text><text class="muted" data-index="{{index}}" bindtap="removePhoto">移除</text></view></view></view><button class="secondary" bindtap="photo" disabled="{{busy}}" hover-start-time="30" hover-stay-time="80">＋ 添加商品图片</button><view class="note space-top">支持相册、拍照和聊天选图。首张图为封面，没有图片会保存为草稿。</view><view wx:if="{{draftSaved && !editing}}" class="muted space-top">填写内容已自动保存<button class="small secondary" bindtap="discard" disabled="{{busy}}" hover-start-time="30" hover-stay-time="80">清空草稿</button></view><view class="label">商品名称 *</view><input class="field" value="{{name}}" data-field="name" bindinput="field" maxlength="120" disabled="{{busy}}" placeholder="填写商品名称"/><block wx:if="{{!editing}}"><view class="label">原零售价（元）*</view><input class="field" type="digit" value="{{price}}" data-field="price" bindinput="field" disabled="{{busy}}" placeholder="例如20.00"/><view class="note">{{promotionTitle}} · 实际售价 <text class="price">¥{{salePreview}}</text></view><view class="label">可售库存（件）*</view><input class="field" type="number" value="{{stock}}" data-field="stock" bindinput="field" disabled="{{busy}}" placeholder="例如10"/><view class="label">款式（选填）</view><input class="field" value="{{skuName}}" data-field="skuName" bindinput="field" maxlength="60" disabled="{{busy}}" placeholder="默认款"/></block><view class="row"><view class="grow"><view class="label">分组</view><picker range="{{groups}}" value="{{groupIndex}}" bindchange="group" disabled="{{busy}}"><view class="field">{{groups[groupIndex]}} ⌄</view></picker></view><view class="grow"><view class="label">类型</view><picker range="{{types}}" value="{{typeIndex}}" bindchange="type" disabled="{{busy}}"><view class="field">{{types[typeIndex]}} ⌄</view></picker></view></view><view class="label">IP / 作品（选填）</view><input class="field" value="{{ip}}" data-field="ip" bindinput="field" maxlength="60" disabled="{{busy}}"/><view class="label">商品介绍（选填）</view><textarea class="field" value="{{description}}" data-field="description" bindinput="field" maxlength="1000" disabled="{{busy}}"/><view wx:if="{{!editing}}" class="row"><text>保存后上架</text><switch checked="{{active}}" bindchange="active" disabled="{{busy}}" color="#c65370"/></view><view wx:if="{{editing}}" class="note">价格、补货和上下架请在商品管理中修改。</view></view><button class="primary" bindtap="save" disabled="{{busy}}" loading="{{busy}}" hover-start-time="30" hover-stay-time="80">{{editing?'保存资料':'保存商品'}}</button></block></view>
+<view class="page page-motion new-product-page">
+ <view class="title">{{editing?'商品资料与图片':'新增商品'}}</view>
+ <view wx:if="{{error}}" class="error">{{error}}</view>
+ <view wx:if="{{authorized}}" class="editor-content content-motion">
+  <view wx:if="{{!editing}}" class="draft-notice">
+   <text>{{draftSaved?'草稿已自动保存':'填写内容会自动保存'}}</text>
+   <button wx:if="{{draftSaved}}" class="draft-clear" bindtap="discard" disabled="{{busy}}" hover-class="photo-action-hover" hover-start-time="30" hover-stay-time="80">清空草稿</button>
+  </view>
+  <view class="card editor-section photos-section">
+   <view class="section-heading"><text class="section-name">商品图片</text><text class="section-meta">{{photos.length}} / 9 张</text></view>
+   <view class="photo-grid">
+    <view class="photo-card" wx:for="{{photos}}" wx:key="index">
+     <view class="photo-media">
+      <image src="{{item.path}}" mode="aspectFit" data-index="{{index}}" bindtap="preview" aria-label="预览商品图片"/>
+      <text wx:if="{{index===0}}" class="cover-badge">封面</text>
+      <button class="photo-remove" data-index="{{index}}" catchtap="removePhoto" disabled="{{busy}}" aria-label="移除这张商品图片" hover-class="photo-action-hover" hover-start-time="30" hover-stay-time="80">×</button>
+     </view>
+     <view wx:if="{{index===0}}" class="cover-current">当前封面</view>
+     <button wx:else class="cover-button" data-index="{{index}}" bindtap="cover" disabled="{{busy}}" hover-class="photo-action-hover" hover-start-time="30" hover-stay-time="80">设为封面</button>
+    </view>
+    <view wx:if="{{photos.length < 9}}" class="photo-add-tile">
+     <button class="photo-add" bindtap="photo" disabled="{{busy}}" aria-label="添加商品图片" hover-class="photo-add-hover" hover-start-time="30" hover-stay-time="80"><view class="photo-add-content"><text class="photo-add-symbol">＋</text><text>添加图片</text></view></button>
+     <view class="photo-add-caption">还可添加 {{9-photos.length}} 张</view>
+    </view>
+    <view wx:if="{{!photos.length}}" class="photo-empty"><text>放上商品照片</text><text class="muted">支持相册、拍照和聊天选图</text></view>
+   </view>
+   <view class="section-note">首张图片为封面。没有图片时，会保存为草稿。</view>
+  </view>
+  <view class="card editor-section">
+   <view class="section-heading"><text class="section-name">基础信息</text></view>
+   <view class="label">商品名称 <text class="required">*</text></view>
+   <input class="field" value="{{name}}" data-field="name" bindinput="field" maxlength="120" disabled="{{busy}}" placeholder="填写商品名称"/>
+   <block wx:if="{{!editing}}">
+    <view class="form-grid">
+     <view><view class="label">原零售价（元）<text class="required">*</text></view><input class="field" type="digit" value="{{price}}" data-field="price" bindinput="field" disabled="{{busy}}" placeholder="例如20.00"/></view>
+     <view><view class="label">可售库存（件）<text class="required">*</text></view><input class="field" type="number" value="{{stock}}" data-field="stock" bindinput="field" disabled="{{busy}}" placeholder="例如10"/></view>
+    </view>
+    <view class="sale-preview"><text>{{promotionTitle}}</text><view>实际售价 <text class="sale-value">¥{{salePreview}}</text></view></view>
+   </block>
+   <view class="form-grid">
+    <view><view class="label">分组</view><picker range="{{groups}}" value="{{groupIndex}}" bindchange="group" disabled="{{busy}}"><view class="field select-field"><text>{{groups[groupIndex]}}</text><text class="select-arrow">⌄</text></view></picker></view>
+    <view><view class="label">类型</view><picker range="{{types}}" value="{{typeIndex}}" bindchange="type" disabled="{{busy}}"><view class="field select-field"><text>{{types[typeIndex]}}</text><text class="select-arrow">⌄</text></view></picker></view>
+   </view>
+   <view wx:if="{{!editing}}" class="publish-row"><text>保存后上架</text><switch checked="{{active}}" bindchange="active" disabled="{{busy}}" color="#c65370"/></view>
+   <view wx:if="{{editing}}" class="section-note">价格、补货和上下架请在商品管理中修改。</view>
+  </view>
+  <view class="card editor-section">
+   <view class="section-heading"><text class="section-name">补充信息</text><text class="section-meta">选填</text></view>
+   <block wx:if="{{!editing}}"><view class="label">款式</view><input class="field" value="{{skuName}}" data-field="skuName" bindinput="field" maxlength="60" disabled="{{busy}}" placeholder="默认款"/></block>
+   <view class="label">IP / 作品</view><input class="field" value="{{ip}}" data-field="ip" bindinput="field" maxlength="60" disabled="{{busy}}" placeholder="填写作品或系列名称"/>
+   <view class="label">商品介绍</view><textarea class="field description-field" value="{{description}}" data-field="description" bindinput="field" maxlength="1000" disabled="{{busy}}" placeholder="简单介绍商品，也可以留空"/>
+  </view>
+  <view class="save-area"><button class="primary" bindtap="save" disabled="{{busy}}" loading="{{busy}}" hover-start-time="30" hover-stay-time="80">{{editing?'保存资料':'保存商品'}}</button></view>
+ </view>
+</view>

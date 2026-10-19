@@ -19,13 +19,13 @@
   ],
   "window": {
     "navigationBarTitleText": "示例零售店",
-    "navigationBarBackgroundColor": "#fff9f0",
+    "navigationBarBackgroundColor": "#f7f7f8",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fff9f0"
+    "backgroundColor": "#f7f7f8"
   },
   "tabBar": {
-    "color": "#8a8993",
-    "selectedColor": "#c65370",
+    "color": "#827d85",
+    "selectedColor": "#b64c65",
     "backgroundColor": "#ffffff",
     "list": [
       {

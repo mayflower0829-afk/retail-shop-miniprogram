@@ -1,5 +1,5 @@
 <import src="../../templates/consent.wxml"/>
-<view class="page page-motion"><view class="title">确认心动清单</view><view class="subtitle">{{shippingText}}</view><view wx:if="{{demo}}" class="demo">本地试用订单，演示付款不扣款。</view>
+<view class="page page-motion"><view class="title">确认订单</view><view class="subtitle">{{shippingText}}</view><view wx:if="{{demo}}" class="demo">本地试用订单，演示付款不扣款。</view>
  <view class="card"><view class="section">收货方式</view><view class="delivery-options"><view class="delivery-option {{deliveryMode==='delivery'?'active':''}}" data-mode="delivery" bindtap="mode" hover-start-time="30" hover-stay-time="80" hover-class="tap-feedback"><view>快递配送</view><view class="muted">寄到你的收货地址</view></view><view wx:if="{{pickupEnabled}}" class="delivery-option {{deliveryMode==='pickup'?'active':''}}" data-mode="pickup" bindtap="mode" hover-start-time="30" hover-stay-time="80" hover-class="tap-feedback"><view>到店自取</view><view class="muted">免运费 · 凭码领取</view></view></view></view>
  <block wx:if="{{!privacyAccepted}}"><template is="fulfillmentConsent" data="{{consentChecked,consentBusy,consentError,demo}}"/></block>
  <block wx:else>

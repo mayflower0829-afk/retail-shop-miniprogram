@@ -1,1 +1,3 @@
 /* 共用样式位于 app.wxss */
+
+.order-loading-hero{min-height:260rpx}.order-page>.skeleton .card{min-height:190rpx}
